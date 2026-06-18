@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: leetcommit
+      POSTGRES_PASSWORD: leetpassword
+      POSTGRES_DB: leetcommit_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leetcommit -d leetcommit_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://leetcommit:leetpassword@postgres:5432/leetcommit_db?schema=public
+      - JWT_SECRET=development_secret_key_123
+      # Add other development secrets here
+    volumes:
+      - ./backend:/app
+      - /app/node_modules # Prevent local node_modules from overriding container's
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Ensure database schema is pushed before starting the dev server
+    command: >
+      sh -c "npx prisma db push && npm run dev"
+
+volumes:
+  pgdata_dev:

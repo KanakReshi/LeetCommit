@@ -1,0 +1,50 @@
+{
+  "name": "leetcommit",
+  "version": "1.0.0",
+  "description": "Automatically detect accepted LeetCode submissions and send problem data to a backend API.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build.mjs && web-ext run -s dist --firefox-profile ./firefox-profile --profile-create-if-missing --keep-profile-changes",
+    "dev:build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs",
+    "ext:run": "web-ext run -s dist --firefox-profile ./firefox-profile --profile-create-if-missing --keep-profile-changes",
+    "ext:lint": "web-ext lint -s dist",
+    "lint": "eslint 'src/**/*.ts' --max-warnings 0",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "format": "prettier --write 'src/**/*.{ts,css,html,json}'",
+    "format:check": "prettier --check 'src/**/*.{ts,css,html,json}'",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.33.0",
+    "@typescript-eslint/parser": "^8.33.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.5.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^10.1.0",
+    "eslint-plugin-prettier": "^5.4.0",
+    "postcss": "^8.5.15",
+    "prettier": "^3.5.3",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "web-ext": "^10.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.17.0",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.6.0"
+  }
+}

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: leetcommit_prod
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supersecurepassword123}
+      POSTGRES_DB: leetcommit_prod_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leetcommit_prod -d leetcommit_prod_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://leetcommit_prod:${POSTGRES_PASSWORD:-supersecurepassword123}@postgres:5432/leetcommit_prod_db?schema=public
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    # Push schema (if self-hosted) and start production server
+    command: >
+      sh -c "npx prisma db push --accept-data-loss && npm run start"
+
+volumes:
+  pgdata_prod:
