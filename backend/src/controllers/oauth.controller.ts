@@ -9,6 +9,9 @@ import { env } from '../config/env';
 const GITHUB_AUTH_URL = 'https://github.com/login/oauth/authorize';
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_API = 'https://api.github.com/user';
+const jwtOptions: jwt.SignOptions = {
+  expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+};
 
 export const githubLogin = (req: Request, res: Response) => {
   if (!env.GITHUB_CLIENT_ID) {
@@ -128,9 +131,7 @@ export const githubCallback = async (req: Request, res: Response, next: NextFunc
     }
 
     // 4. Generate Internal Session Tokens
-    const accessToken = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
-      expiresIn: env.JWT_EXPIRES_IN,
-    });
+    const accessToken = jwt.sign({ userId: user.id }, env.JWT_SECRET, jwtOptions);
 
     const refreshTokenString = crypto.randomBytes(32).toString('hex');
     
@@ -211,9 +212,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Generate new Access Token
-    const accessToken = jwt.sign({ userId: storedToken.userId }, env.JWT_SECRET, {
-      expiresIn: env.JWT_EXPIRES_IN,
-    });
+    const accessToken = jwt.sign({ userId: storedToken.userId }, env.JWT_SECRET, jwtOptions);
 
     // Optionally rotate the refresh token (delete old, issue new). 
     // Here we'll just keep the existing one until it expires.

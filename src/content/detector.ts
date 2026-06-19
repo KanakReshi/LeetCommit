@@ -50,6 +50,7 @@ export async function checkSubmissionResult(
         memory
         code
         lang { name verboseName }
+        question { questionId }
       }
     }
   `;
@@ -102,6 +103,7 @@ export async function checkSubmissionResult(
             status_memory: details.memory != null ? String(details.memory) : 'N/A',
             lang: details.lang?.name ?? 'unknown',
             submission_id: submissionId,
+            question_id: details.question?.questionId != null ? String(details.question.questionId) : undefined,
             code: details.code ?? '',
           },
           submissionId

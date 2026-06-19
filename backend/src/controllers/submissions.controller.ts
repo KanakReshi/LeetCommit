@@ -68,12 +68,15 @@ export const saveSubmission = async (req: AuthRequest, res: Response, next: Next
         githubService.pushSolution({
           problemTitle: problem.title,
           problemSlug: problem.titleSlug,
+          questionId: problem.questionId,
           difficulty: problem.difficulty || 'Unknown',
           tags: problem.tags || [],
           language: submission.language,
           code: submission.code || '',
+          runtime: submission.runtime,
+          memory: submission.memory,
         }).then(() => {
-          console.log(`[GitHub Sync] ✅ Pushed to ${user.githubUsername}/LeetCode-Solutions`);
+          console.log(`[GitHub Sync] ✅ Pushed to ${user.githubUsername}/LeetCode`);
         }).catch((err) => {
           console.error(`[GitHub Sync] ❌ Failed: ${err.message}`);
           logger.error({ userId, err: err.message }, 'Background GitHub sync failed');

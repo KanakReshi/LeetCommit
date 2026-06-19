@@ -23,26 +23,28 @@ export class GithubService {
   async pushSolution(params: {
     problemTitle: string;
     problemSlug: string;
+    questionId?: string;
     difficulty: string;
     tags: string[];
     language: string;
     code: string;
+    runtime?: string;
+    memory?: string;
   }): Promise<void> {
     try {
       await this.ensureRepositoryExists();
 
-      const { problemTitle, problemSlug, difficulty, tags, language, code } = params;
+      const { problemTitle, problemSlug, questionId, difficulty, tags, language, code, runtime, memory } = params;
       const extension = getExtensionForLanguage(language);
-      
-      const cleanTitle = problemTitle.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-      
-      const folder = this.getTopicFolder(tags);
-      const filePath = `${folder}/${cleanTitle}${extension}`;
-      const message = `Sync LeetCode: ${problemTitle} (${language})`;
+
+      const folder = this.getProblemFolder(questionId, problemSlug);
+      const filePath = `${folder}/${problemSlug}${extension}`;
+      const message = this.getSolutionCommitMessage(runtime, memory);
 
       const commentPrefix = getCommentPrefix(language);
       const template = `${commentPrefix} Problem: ${problemTitle}\n${commentPrefix} Difficulty: ${difficulty}\n${commentPrefix} Tags: ${tags.join(', ') || 'None'}\n${commentPrefix} Link: https://leetcode.com/problems/${problemSlug}/\n\n${code}`;
 
+      await this.ensureProblemReadme(folder, problemTitle, problemSlug, difficulty, tags);
       await this.commitFile(filePath, message, template);
       log.info(`Successfully pushed solution to ${this.owner}/${this.defaultRepoName}/${filePath}`);
     } catch (error) {
@@ -122,18 +124,54 @@ export class GithubService {
     });
   }
 
-  /**
-   * Generates folder name based on the primary topic tag
-   */
-  private getTopicFolder(tags: string[]): string {
-    if (!tags || tags.length === 0) {
-      return 'Uncategorized';
+  private async ensureProblemReadme(
+    folder: string,
+    problemTitle: string,
+    problemSlug: string,
+    difficulty: string,
+    tags: string[]
+  ): Promise<void> {
+    const readmePath = `${folder}/README.md`;
+
+    if (await this.fileExists(readmePath)) {
+      return;
     }
-    // Take the first tag and normalize it for a folder name (Title Case, spaces to dashes)
-    const primaryTag = tags[0];
-    return primaryTag
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join('-');
+
+    const topics = tags.length > 0 ? tags.join(', ') : 'None';
+    const readme = `# ${problemTitle}\n\n**Difficulty:** ${difficulty}\n\n**Topics:** ${topics}\n\n**Link:** https://leetcode.com/problems/${problemSlug}/\n`;
+
+    await this.commitFile(readmePath, `Added README.md file for ${problemTitle}`, readme);
+  }
+
+  private async fileExists(path: string): Promise<boolean> {
+    try {
+      const response = await this.octokit.repos.getContent({
+        owner: this.owner,
+        repo: this.defaultRepoName,
+        path,
+      });
+
+      return !Array.isArray(response.data) && response.data.type === 'file';
+    } catch (error: any) {
+      if (error.status === 404) {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
+  private getProblemFolder(questionId: string | undefined, problemSlug: string): string {
+    const normalizedId = questionId?.trim();
+
+    if (normalizedId && normalizedId !== 'unknown') {
+      return `${normalizedId}-${problemSlug}`;
+    }
+
+    return problemSlug;
+  }
+
+  private getSolutionCommitMessage(runtime?: string, memory?: string): string {
+    return `Time: ${runtime || 'N/A'} | Memory: ${memory || 'N/A'} - LeetCommit`;
   }
 }

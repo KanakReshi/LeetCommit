@@ -12,6 +12,7 @@ const submissionSchema = z.object({
     problem: z.object({
       titleSlug: z.string(),
       title: z.string(),
+      questionId: z.string().optional(),
       difficulty: z.string().optional(),
       tags: z.array(z.string()).optional(),
     }),

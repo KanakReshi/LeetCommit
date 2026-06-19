@@ -118,7 +118,7 @@ export async function buildSubmissionPayload(
   const problem: LeetCodeProblem = {
     titleSlug: slug,
     title: domData.title ?? slug,
-    questionId: domData.questionId ?? responseData.question_id ?? 'unknown',
+    questionId: responseData.question_id ?? domData.questionId ?? 'unknown',
     difficulty: domData.difficulty ?? 'Easy',
     tags: domData.tags ?? [],
   };

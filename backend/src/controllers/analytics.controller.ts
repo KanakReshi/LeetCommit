@@ -25,7 +25,7 @@ export const getDashboardAnalytics = async (req: AuthRequest, res: Response, nex
       }
     });
   } catch (error) {
-    logger.error('Failed to get dashboard analytics', error);
+    logger.error({ err: error }, 'Failed to get dashboard analytics');
     next(error);
   }
 };

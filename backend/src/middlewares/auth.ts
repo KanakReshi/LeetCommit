@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+import { prisma } from '../utils/prisma';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -22,6 +23,16 @@ export const requireAuth = async (
 
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string };
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User no longer exists. Please log in again.' });
+      return;
+    }
+
     req.userId = decoded.userId;
     next();
   } catch (error) {

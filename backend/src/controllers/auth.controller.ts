@@ -4,6 +4,10 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../utils/prisma';
 import { env } from '../config/env';
 
+const jwtOptions: jwt.SignOptions = {
+  expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+};
+
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email, password } = req.body;
@@ -24,9 +28,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       },
     });
 
-    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
-      expiresIn: env.JWT_EXPIRES_IN,
-    });
+    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, jwtOptions);
 
     res.status(201).json({
       success: true,
@@ -56,9 +58,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, {
-      expiresIn: env.JWT_EXPIRES_IN,
-    });
+    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, jwtOptions);
 
     res.status(200).json({
       success: true,
