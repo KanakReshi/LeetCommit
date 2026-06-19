@@ -47,7 +47,11 @@ export async function checkSubmissionResult(
         statusCode
         statusDisplay
         runtime
+        runtimeDisplay
+        runtimePercentile
         memory
+        memoryDisplay
+        memoryPercentile
         code
         lang { name verboseName }
         question { questionId }
@@ -99,8 +103,11 @@ export async function checkSubmissionResult(
           {
             state: 'SUCCESS',
             status_msg: 'Accepted',
-            status_runtime: details.runtime != null ? String(details.runtime) : 'N/A',
-            status_memory: details.memory != null ? String(details.memory) : 'N/A',
+            // Prefer the display strings (e.g. "51 ms", "9.4 MB") over the raw numbers
+            status_runtime: details.runtimeDisplay ?? (details.runtime != null ? String(details.runtime) : 'N/A'),
+            status_memory: details.memoryDisplay ?? (details.memory != null ? String(details.memory) : 'N/A'),
+            runtime_percentile: details.runtimePercentile ?? undefined,
+            memory_percentile: details.memoryPercentile ?? undefined,
             lang: details.lang?.name ?? 'unknown',
             submission_id: submissionId,
             question_id: details.question?.questionId != null ? String(details.question.questionId) : undefined,

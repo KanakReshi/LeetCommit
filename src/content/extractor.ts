@@ -105,8 +105,42 @@ async function fetchSubmissionCode(submissionId: string): Promise<string> {
 }
 
 /**
+ * Fetches the problem description HTML and category title from LeetCode GraphQL.
+ * Uses the user's active browser session (credentials: 'include').
+ */
+async function fetchProblemDetails(
+  titleSlug: string
+): Promise<{ descriptionHtml: string; categoryTitle: string }> {
+  const query = `
+    query questionContent($titleSlug: String!) {
+      question(titleSlug: $titleSlug) {
+        content
+        categoryTitle
+      }
+    }
+  `;
+  const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] ?? '';
+  try {
+    const res = await fetch('https://leetcode.com/graphql/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-csrftoken': csrfToken },
+      body: JSON.stringify({ query, variables: { titleSlug } }),
+      credentials: 'include',
+    });
+    const json = await res.json();
+    return {
+      descriptionHtml: json?.data?.question?.content ?? '',
+      categoryTitle: json?.data?.question?.categoryTitle ?? 'Algorithms',
+    };
+  } catch (err) {
+    log.warn('Failed to fetch problem details:', err);
+    return { descriptionHtml: '', categoryTitle: 'Algorithms' };
+  }
+}
+
+/**
  * Build a complete SubmissionPayload from the intercepted response
- * and DOM-extracted metadata. Fetches source code via GraphQL.
+ * and DOM-extracted metadata. Fetches source code and description via GraphQL.
  */
 export async function buildSubmissionPayload(
   responseData: GraphQLSubmissionStatusResponse,
@@ -115,29 +149,38 @@ export async function buildSubmissionPayload(
   const domData = extractProblemFromDOM();
   const slug = extractSlugFromUrl() ?? 'unknown';
 
+  // Fetch problem description and category in parallel with submission code
+  const [problemDetails, code] = await Promise.all([
+    fetchProblemDetails(slug),
+    (async () => {
+      if (responseData.code) return responseData.code;
+      try {
+        const id = submissionId || responseData.submission_id || '';
+        if (id) return await fetchSubmissionCode(id);
+      } catch (err) {
+        log.warn('Failed to fetch submission code:', err);
+      }
+      return '';
+    })(),
+  ]);
+
   const problem: LeetCodeProblem = {
     titleSlug: slug,
     title: domData.title ?? slug,
     questionId: responseData.question_id ?? domData.questionId ?? 'unknown',
     difficulty: domData.difficulty ?? 'Easy',
     tags: domData.tags ?? [],
+    categoryTitle: problemDetails.categoryTitle,
+    descriptionHtml: problemDetails.descriptionHtml,
   };
-
-  let code = responseData.code ?? '';
-  if (!code) {
-    try {
-      const id = submissionId || responseData.submission_id || '';
-      if (id) code = await fetchSubmissionCode(id);
-    } catch (err) {
-      log.warn('Failed to fetch submission code:', err);
-    }
-  }
 
   const submission: LeetCodeSubmission = {
     submissionId: submissionId || responseData.submission_id || 'unknown',
     language: responseData.lang ?? 'unknown',
     runtime: responseData.status_runtime ?? 'N/A',
     memory: responseData.status_memory ?? 'N/A',
+    runtimePercentile: responseData.runtime_percentile,
+    memoryPercentile: responseData.memory_percentile,
     timestamp: Date.now(),
     code: code || undefined,
   };

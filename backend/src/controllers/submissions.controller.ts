@@ -75,6 +75,10 @@ export const saveSubmission = async (req: AuthRequest, res: Response, next: Next
           code: submission.code || '',
           runtime: submission.runtime,
           memory: submission.memory,
+          runtimePercentile: submission.runtimePercentile,
+          memoryPercentile: submission.memoryPercentile,
+          categoryTitle: problem.categoryTitle,
+          descriptionHtml: problem.descriptionHtml,
         }).then(() => {
           console.log(`[GitHub Sync] ✅ Pushed to ${user.githubUsername}/LeetCode`);
         }).catch((err) => {

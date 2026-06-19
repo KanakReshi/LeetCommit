@@ -17,8 +17,8 @@ export class GithubService {
   /**
    * Orchestrates the push to GitHub.
    * 1. Ensures repo exists
-   * 2. Constructs path based on difficulty and title
-   * 3. Commits the file
+   * 2. Constructs path based on category, question ID and title
+   * 3. Commits the README and solution file
    */
   async pushSolution(params: {
     problemTitle: string;
@@ -30,21 +30,41 @@ export class GithubService {
     code: string;
     runtime?: string;
     memory?: string;
+    runtimePercentile?: number;
+    memoryPercentile?: number;
+    categoryTitle?: string;
+    descriptionHtml?: string;
   }): Promise<void> {
     try {
       await this.ensureRepositoryExists();
 
-      const { problemTitle, problemSlug, questionId, difficulty, tags, language, code, runtime, memory } = params;
+      const {
+        problemTitle,
+        problemSlug,
+        questionId,
+        difficulty,
+        tags,
+        language,
+        code,
+        runtime,
+        memory,
+        runtimePercentile,
+        memoryPercentile,
+        categoryTitle,
+        descriptionHtml,
+      } = params;
       const extension = getExtensionForLanguage(language);
 
-      const folder = this.getProblemFolder(questionId, problemSlug);
-      const filePath = `${folder}/${problemSlug}${extension}`;
-      const message = this.getSolutionCommitMessage(runtime, memory);
+      const folder = this.getProblemFolder(questionId, problemSlug, categoryTitle);
+      // Solution filename uses the slug (already kebab-case)
+      const solutionFilename = `${problemSlug}${extension}`;
+      const filePath = `${folder}/${solutionFilename}`;
+      const message = this.getSolutionCommitMessage(runtime, memory, runtimePercentile, memoryPercentile);
 
       const commentPrefix = getCommentPrefix(language);
       const template = `${commentPrefix} Problem: ${problemTitle}\n${commentPrefix} Difficulty: ${difficulty}\n${commentPrefix} Tags: ${tags.join(', ') || 'None'}\n${commentPrefix} Link: https://leetcode.com/problems/${problemSlug}/\n\n${code}`;
 
-      await this.ensureProblemReadme(folder, problemTitle, problemSlug, difficulty, tags);
+      await this.ensureProblemReadme(folder, problemTitle, problemSlug, difficulty, descriptionHtml);
       await this.commitFile(filePath, message, template);
       log.info(`Successfully pushed solution to ${this.owner}/${this.defaultRepoName}/${filePath}`);
     } catch (error) {
@@ -129,7 +149,7 @@ export class GithubService {
     problemTitle: string,
     problemSlug: string,
     difficulty: string,
-    tags: string[]
+    descriptionHtml?: string
   ): Promise<void> {
     const readmePath = `${folder}/README.md`;
 
@@ -137,10 +157,35 @@ export class GithubService {
       return;
     }
 
-    const topics = tags.length > 0 ? tags.join(', ') : 'None';
-    const readme = `# ${problemTitle}\n\n**Difficulty:** ${difficulty}\n\n**Topics:** ${topics}\n\n**Link:** https://leetcode.com/problems/${problemSlug}/\n`;
+    const badgeColor = this.getDifficultyBadgeColor(difficulty);
+    const badgeUrl = `https://img.shields.io/badge/Difficulty-${difficulty}-${badgeColor}`;
 
-    await this.commitFile(readmePath, `Added README.md file for ${problemTitle}`, readme);
+    // Build the README with the full LeetCode HTML description
+    let readme: string;
+    if (descriptionHtml) {
+      readme =
+        `<h2><a href="https://leetcode.com/problems/${problemSlug}">${problemTitle}</a></h2> ` +
+        `<img src='${badgeUrl}' alt='Difficulty: ${difficulty}' /><hr>` +
+        descriptionHtml;
+    } else {
+      // Fallback when description wasn't captured
+      readme =
+        `<h2><a href="https://leetcode.com/problems/${problemSlug}">${problemTitle}</a></h2> ` +
+        `<img src='${badgeUrl}' alt='Difficulty: ${difficulty}' /><hr>` +
+        `<p>Visit <a href="https://leetcode.com/problems/${problemSlug}">LeetCode</a> to view the full problem description.</p>`;
+    }
+
+    await this.commitFile(readmePath, `docs: add README for ${problemTitle}`, readme);
+  }
+
+  /** Maps LeetCode difficulty to a shields.io colour name */
+  private getDifficultyBadgeColor(difficulty: string): string {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':   return 'brightgreen';
+      case 'medium': return 'orange';
+      case 'hard':   return 'red';
+      default:       return 'lightgrey';
+    }
   }
 
   private async fileExists(path: string): Promise<boolean> {
@@ -161,17 +206,40 @@ export class GithubService {
     }
   }
 
-  private getProblemFolder(questionId: string | undefined, problemSlug: string): string {
+  /**
+   * Builds the folder path: <Category>/<questionId>-<problemSlug>
+   * e.g. Database/1757-recyclable-and-low-fat-products
+   *      Algorithms/1143-longest-common-subsequence
+   */
+  private getProblemFolder(
+    questionId: string | undefined,
+    problemSlug: string,
+    categoryTitle?: string
+  ): string {
+    const category = (categoryTitle?.trim() || 'Algorithms').replace(/\s+/g, '-');
     const normalizedId = questionId?.trim();
 
     if (normalizedId && normalizedId !== 'unknown') {
-      return `${normalizedId}-${problemSlug}`;
+      return `${category}/${normalizedId}-${problemSlug}`;
     }
 
-    return problemSlug;
+    return `${category}/${problemSlug}`;
   }
 
-  private getSolutionCommitMessage(runtime?: string, memory?: string): string {
-    return `Time: ${runtime || 'N/A'} | Memory: ${memory || 'N/A'} - LeetCommit`;
+  /**
+   * Commit message format:
+   * Time: <runtime>ms (<runtimePercentile>%) | Memory: <memory> (<memoryPercentile>%) - LeetCommit
+   */
+  private getSolutionCommitMessage(
+    runtime?: string,
+    memory?: string,
+    runtimePercentile?: number,
+    memoryPercentile?: number
+  ): string {
+    const rt = runtime ? runtime.replace(/ms$/, '').trim() : 'N/A';
+    const rtPct = runtimePercentile != null ? `${runtimePercentile.toFixed(2)}%` : 'N/A';
+    const mem = memory ?? 'N/A';
+    const memPct = memoryPercentile != null ? `${memoryPercentile.toFixed(2)}%` : 'N/A';
+    return `Time: ${rt}ms (${rtPct}) | Memory: ${mem} (${memPct}) - LeetCommit`;
   }
 }

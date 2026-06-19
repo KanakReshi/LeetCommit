@@ -30,6 +30,10 @@ export interface LeetCodeProblem {
   difficulty: Difficulty;
   /** Topic tags, e.g. ["Array", "Hash Table"] */
   tags: string[];
+  /** LeetCode category, e.g. "Algorithms", "Database", "Shell" */
+  categoryTitle?: string;
+  /** Raw HTML description from LeetCode's content field */
+  descriptionHtml?: string;
 }
 
 /** Data extracted from an accepted submission response */
@@ -42,6 +46,10 @@ export interface LeetCodeSubmission {
   runtime: string;
   /** Memory usage, e.g. "42.3 MB" */
   memory: string;
+  /** Percentage of submissions beaten for runtime, e.g. 98.5 */
+  runtimePercentile?: number;
+  /** Percentage of submissions beaten for memory, e.g. 75.2 */
+  memoryPercentile?: number;
   /** Timestamp of the submission (epoch ms) */
   timestamp: number;
   /** Source code of the submission (if available) */
@@ -89,6 +97,10 @@ export interface GraphQLSubmissionStatusResponse {
   status_msg: string;
   status_runtime: string;
   status_memory: string;
+  /** Percentile beaten for runtime speed, e.g. 98.5 */
+  runtime_percentile?: number;
+  /** Percentile beaten for memory usage, e.g. 75.2 */
+  memory_percentile?: number;
   lang: string;
   submission_id: string;
   question_id?: string;
