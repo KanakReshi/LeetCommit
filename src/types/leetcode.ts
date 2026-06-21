@@ -46,6 +46,8 @@ export interface LeetCodeSubmission {
     status: number;
     runtime?: string;
     memory?: string;
+    runtimePercentile?: number;
+    memoryPercentile?: number;
     timestamp: number;
 }
 

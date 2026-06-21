@@ -15,7 +15,6 @@ export async function sendSubmissionToGithub(payload: SubmissionPayload): Promis
   if (!github) {
     return {
       success: false,
-
       message: 'GitHub configuration missing',
     };
   }
@@ -25,56 +24,81 @@ export async function sendSubmissionToGithub(payload: SubmissionPayload): Promis
   if (!token || !repo || !username) {
     return {
       success: false,
-
       message: 'Invalid GitHub configuration',
     };
   }
 
-  const filePath = `LeetCode/${payload.problem.title}.${getExtension(payload.submission.language)}`;
+  const formattedTitle = payload.problem.title.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+  const category = payload.problem.categoryTitle || 'Algorithms';
+  const questionNumber = payload.problem.questionId;
+  
+  const baseFolder = `${category}/${questionNumber}-${formattedTitle}`;
+  const codeFilePath = `${baseFolder}/${formattedTitle}.${getExtension(payload.submission.language)}`;
+  const readmeFilePath = `${baseFolder}/README.md`;
 
-  const content = btoa(unescape(encodeURIComponent(payload.submission.code)));
+  const codeContent = btoa(unescape(encodeURIComponent(payload.submission.code || '')));
+  
+  const diffColor = payload.problem.difficulty === 'Easy' ? 'success' : payload.problem.difficulty === 'Medium' ? 'warning' : 'critical';
+  const readmeMarkdown = `<h2><a href="https://leetcode.com/problems/${payload.problem.titleSlug}">${payload.problem.questionId}. ${payload.problem.title}</a></h2>\n\n` + 
+                         `<h3><img src="https://img.shields.io/badge/Difficulty-${payload.problem.difficulty}-${diffColor}?style=for-the-badge" alt="Difficulty"></h3>\n\n` + 
+                         `--- \n\n` +
+                         (payload.problem.descriptionHtml || 'No description available.');
+  const readmeContent = btoa(unescape(encodeURIComponent(readmeMarkdown)));
+
+  const commitMessage = `Time: ${payload.submission.runtime} (${payload.submission.runtimePercentile || 0}%) | Memory: ${payload.submission.memory} (${payload.submission.memoryPercentile || 0}%) - LeetCommit`;
 
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${username}/${repo}/contents/${filePath}`,
-      {
-        method: 'PUT',
-
-        headers: {
-          Authorization: `Bearer ${token}`,
-
-          'Content-Type': 'application/json',
-        },
-
-        body: JSON.stringify({
-          message: `Add solution ${payload.problem.title}`,
-
-          content,
-
-          branch,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.text();
-
-      return {
-        success: false,
-
-        message: error,
-      };
-    }
-
-    return {
-      success: true,
-    };
+    await uploadFileToGithub(token, username, repo, branch, codeFilePath, codeContent, commitMessage);
+    // Add 1 second delay to avoid GitHub API 409 Conflict on rapid consecutive commits
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await uploadFileToGithub(token, username, repo, branch, readmeFilePath, readmeContent, commitMessage);
+    return { success: true };
   } catch (error) {
+    console.error("GITHUB API SYNC ERROR:", error);
     return {
       success: false,
-
       message: String(error),
     };
+  }
+}
+
+async function uploadFileToGithub(token: string, username: string, repo: string, branch: string, path: string, contentBase64: string, message: string): Promise<void> {
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  const url = `https://api.github.com/repos/${username}/${repo}/contents/${encodedPath}`;
+  
+  let sha: string | undefined;
+  try {
+    const getRes = await fetch(`${url}?ref=${branch}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3+json'
+      }
+    });
+    if (getRes.ok) {
+      const data = await getRes.json();
+      sha = data.sha;
+    }
+  } catch (err) {
+    // Ignore error if file doesn't exist
+  }
+
+  const putRes = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message,
+      content: contentBase64,
+      branch,
+      ...(sha ? { sha } : {})
+    }),
+  });
+
+  if (!putRes.ok) {
+    const error = await putRes.text();
+    throw new Error(`GitHub API error on ${path}: ${error}`);
   }
 }
 
