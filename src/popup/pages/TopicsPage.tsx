@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import TopicChart from '../components/charts/TopicChart';
 import { AlertCircle } from 'lucide-react';
+import browser from 'webextension-polyfill';
 
 export default function TopicsPage() {
   const [topicData, setTopicData] = useState<{topic: string; count: number}[]>([]);
@@ -9,7 +10,7 @@ export default function TopicsPage() {
   useEffect(() => {
     if (typeof browser !== 'undefined' && browser.storage) {
       browser.storage.local.get(['submissions', 'exactTopics']).then((res) => {
-        const topicMap: Record<string, number> = res.exactTopics || {};
+        const topicMap: Record<string, number> = (res.exactTopics as Record<string, number>) || {};
         
         // Fallback to computing from submissions if exactTopics doesn't exist
         if (!res.exactTopics) {

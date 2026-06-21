@@ -9,7 +9,6 @@
 
 import type {
   LeetCodeProblem,
-  LeetCodeSubmission,
   SubmissionPayload,
   GraphQLSubmissionStatusResponse,
   Difficulty,
@@ -174,15 +173,18 @@ export async function buildSubmissionPayload(
     descriptionHtml: problemDetails.descriptionHtml,
   };
 
-  const submission: LeetCodeSubmission = {
-    submissionId: submissionId || responseData.submission_id || 'unknown',
+  const submission: any = {
+    id: submissionId || responseData.submission_id || 'unknown',
+    title: domData.title ?? slug,
+    slug: slug,
     language: responseData.lang ?? 'unknown',
+    code: code || '',
+    status: 10,
     runtime: responseData.status_runtime ?? 'N/A',
     memory: responseData.status_memory ?? 'N/A',
     runtimePercentile: responseData.runtime_percentile,
     memoryPercentile: responseData.memory_percentile,
     timestamp: Date.now(),
-    code: code || undefined,
   };
 
   const payload: SubmissionPayload = {

@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ActivityChart from '../components/charts/ActivityChart';
 import DifficultyChart from '../components/charts/DifficultyChart';
+import browser from 'webextension-polyfill';
 
 export default function AnalyticsPage() {
   const [activityData, setActivityData] = useState<{date: string; count: number}[]>([]);
@@ -13,7 +14,7 @@ export default function AnalyticsPage() {
         
         // Aggregate Activity Data
         const activityMap: Record<string, number> = {};
-        let diffMap: Record<string, number> = res.exactDifficulties || { 'Easy': 0, 'Medium': 0, 'Hard': 0 };
+        let diffMap: Record<string, number> = (res.exactDifficulties as Record<string, number>) || { 'Easy': 0, 'Medium': 0, 'Hard': 0 };
 
         (submissions as { timestamp: number; difficulty?: string }[]).forEach((sub) => {
           // Date formatting for activity

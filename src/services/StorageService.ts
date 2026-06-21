@@ -19,8 +19,9 @@ export interface UserSettings {
 }
 
 export interface BackendToken {
-  apiUrl: string;
+  apiUrl?: string;
   accessToken: string;
+  repo?: string;
   refreshToken: string;
   githubUsername: string | null;
 }
@@ -56,7 +57,7 @@ export const DEFAULT_APP_STORAGE: AppStorage = {
     notifications: true,
   },
   token: {
-    apiUrl: 'http://localhost:3000',
+    apiUrl: '',
     accessToken: '',
     refreshToken: '',
     githubUsername: null,

@@ -11,7 +11,7 @@
  */
 
 import type { GraphQLSubmissionStatusResponse } from '@/types/leetcode';
-import type { SubmissionAcceptedMessage } from '@/types/messages';
+import type { ExtensionMessage } from '@/types/messages';
 import type { PageContext } from '@/types/navigation';
 import { installDetector, extractSubmissionIdFromUrl, checkSubmissionResult } from './detector';
 import { buildSubmissionPayload } from './extractor';
@@ -46,7 +46,7 @@ function handleAcceptedSubmission(
 
   buildSubmissionPayload(data, submissionId)
     .then((payload) => {
-      const message: SubmissionAcceptedMessage = {
+      const message: ExtensionMessage = {
         type: 'SUBMISSION_ACCEPTED',
         payload,
       };

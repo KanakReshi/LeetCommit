@@ -38,22 +38,15 @@ export interface LeetCodeProblem {
 
 /** Data extracted from an accepted submission response */
 export interface LeetCodeSubmission {
-  /** Submission ID assigned by LeetCode */
-  submissionId: string;
-  /** Programming language used */
-  language: string;
-  /** Runtime in ms, e.g. "4 ms" */
-  runtime: string;
-  /** Memory usage, e.g. "42.3 MB" */
-  memory: string;
-  /** Percentage of submissions beaten for runtime, e.g. 98.5 */
-  runtimePercentile?: number;
-  /** Percentage of submissions beaten for memory, e.g. 75.2 */
-  memoryPercentile?: number;
-  /** Timestamp of the submission (epoch ms) */
-  timestamp: number;
-  /** Source code of the submission (if available) */
-  code?: string;
+    id: string;
+    title: string;
+    slug: string;
+    language: string;
+    code: string;
+    status: number;
+    runtime?: string;
+    memory?: string;
+    timestamp: number;
 }
 
 /** Combined payload sent to the backend API */

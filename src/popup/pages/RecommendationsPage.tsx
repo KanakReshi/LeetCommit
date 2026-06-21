@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Target, TrendingUp, AlertTriangle, Zap, LucideIcon } from 'lucide-react';
+import browser from 'webextension-polyfill';
 
 export default function RecommendationsPage() {
   const [advice, setAdvice] = useState<{title: string; desc: string; icon: LucideIcon; color: string}[]>([]);
@@ -8,7 +9,7 @@ export default function RecommendationsPage() {
     if (typeof browser !== 'undefined' && browser.storage) {
       browser.storage.local.get(['submissions', 'exactDifficulties', 'exactTopics']).then((res) => {
         const newAdvice = [];
-        const submissions = res.submissions || [];
+        const submissions = (res.submissions as any[]) || [];
         
         // 1. Streak Advice
         let isStreakActive = false;
@@ -30,9 +31,9 @@ export default function RecommendationsPage() {
 
         // 2. Difficulty Balance Advice
         if (res.exactDifficulties) {
-          const easy = res.exactDifficulties['Easy'] || 0;
-          const medium = res.exactDifficulties['Medium'] || 0;
-          const hard = res.exactDifficulties['Hard'] || 0;
+          const easy = (res.exactDifficulties as Record<string, number>)['Easy'] || 0;
+          const medium = (res.exactDifficulties as Record<string, number>)['Medium'] || 0;
+          const hard = (res.exactDifficulties as Record<string, number>)['Hard'] || 0;
           const total = easy + medium + hard;
           
           if (total > 10) {
