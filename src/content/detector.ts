@@ -5,9 +5,7 @@
  *
  * When LeetCode navigates to /problems/{slug}/submissions/{id}/,
  * we extract the submission ID and query LeetCode's GraphQL API
- * directly for the result. This is more reliable than intercepting
- * network requests because LeetCode's SPA may capture fetch references
- * before the content script runs.
+ * directly for the result.
  */
 
 import type { GraphQLSubmissionStatusResponse } from '@/types/leetcode';
@@ -20,110 +18,425 @@ export type AcceptedCallback = (
   submissionId: string
 ) => void;
 
+
 /**
- * Extract submission ID if the URL is a submission result page.
- * Matches: /problems/{slug}/submissions/{id}/
+ * Extract submission ID from URL
  */
 export function extractSubmissionIdFromUrl(url: string): string | null {
   const match = url.match(/\/problems\/[^/]+\/submissions\/(\d+)/);
   return match ? match[1] : null;
 }
 
-const PENDING_CODES = new Set([0, 16]); // 0 = pending, 16 = not ready / internal transient
+
+const PENDING_CODES = new Set([0, 16]);
+
 
 /**
- * Query LeetCode GraphQL for submission details and fire the callback
- * if the submission was accepted. Retries until the result is final.
+ * Main submission checker
  */
 export async function checkSubmissionResult(
   submissionId: string,
   onAccepted: AcceptedCallback
 ): Promise<void> {
-  log.info('Checking submission result for ID:', submissionId);
 
-  const query = `
+  log.info('Checking submission:', submissionId);
+
+
+  const statusQuery = `
     query submissionDetails($submissionId: Int!) {
       submissionDetails(submissionId: $submissionId) {
         statusCode
         statusDisplay
-        runtime
-        memory
-        code
-        lang { name verboseName }
       }
     }
   `;
 
+
+  const fullQuery = `
+    query submissionDetails($submissionId: Int!) {
+      submissionDetails(submissionId: $submissionId) {
+
+        runtime
+        runtimeDisplay
+        runtimePercentile
+
+        memory
+        memoryDisplay
+        memoryPercentile
+
+        code
+        timestamp
+
+        statusCode
+        aiJudgeMessage
+
+        isCompiledLang
+        aiRecheckSubmitted
+
+
+        user {
+          username
+          profile {
+            realName
+            userAvatar
+          }
+        }
+
+
+        lang {
+          name
+          verboseName
+        }
+
+
+        question {
+          questionId
+          titleSlug
+          hasFrontendPreview
+        }
+
+
+        notes
+        flagType
+
+
+        topicTags {
+          tagId
+          slug
+          name
+        }
+
+
+        runtimeError
+        compileError
+
+
+        lastTestcase
+
+        codeOutput
+        expectedOutput
+
+
+        totalCorrect
+        totalTestcases
+
+
+        fullCodeOutput
+
+
+        testDescriptions
+        testBodies
+        testInfo
+
+
+        stdOutput
+      }
+    }
+  `;
+
+
+
   const MAX_ATTEMPTS = 12;
   const DELAY_MS = 3000;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    if (attempt > 1) {
-      await new Promise((r) => setTimeout(r, DELAY_MS));
+
+
+  for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
+
+
+    if(attempt > 1){
+      await new Promise(r => setTimeout(r, DELAY_MS));
     }
+
+
 
     try {
-      const res = await fetch('https://leetcode.com/graphql/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrftoken': getCsrfToken(),
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          query,
-          variables: { submissionId: parseInt(submissionId, 10) },
-        }),
-      });
 
-      const json = await res.json();
-      const details = json?.data?.submissionDetails;
 
-      if (!details) {
-        log.warn(`Attempt ${attempt}: no submissionDetails in response`);
-        continue;
-      }
+      /**
+       * First request:
+       * Check whether result is ready
+       */
 
-      log.debug(`Attempt ${attempt}: statusCode=${details.statusCode} statusDisplay=${details.statusDisplay}`);
+      const statusRes = await fetch(
+        'https://leetcode.com/graphql/',
+        {
+          method:'POST',
 
-      // Still processing — retry
-      if (PENDING_CODES.has(details.statusCode)) {
-        log.debug(`Attempt ${attempt}: result not ready yet, retrying...`);
-        continue;
-      }
-
-      if (details.statusCode === 10 || details.statusDisplay === 'Accepted') {
-        log.info('✅ Accepted submission confirmed:', submissionId);
-        onAccepted(
-          {
-            state: 'SUCCESS',
-            status_msg: 'Accepted',
-            status_runtime: details.runtime != null ? String(details.runtime) : 'N/A',
-            status_memory: details.memory != null ? String(details.memory) : 'N/A',
-            lang: details.lang?.name ?? 'unknown',
-            submission_id: submissionId,
-            code: details.code ?? '',
+          headers:{
+            'Content-Type':'application/json',
+            'x-csrftoken':getCsrfToken()
           },
+
+          credentials:'include',
+
+
+          body:JSON.stringify({
+
+            operationName:"submissionDetails",
+
+            query:statusQuery,
+
+            variables:{
+              submissionId:Number(submissionId)
+            }
+
+          })
+        }
+      );
+
+
+
+      const statusJson = await statusRes.json();
+
+
+      const status =
+        statusJson?.data?.submissionDetails;
+
+
+
+      if(!status){
+
+        log.warn(
+          `Attempt ${attempt}: no submission data`
+        );
+
+        continue;
+      }
+
+
+
+      log.debug(
+        `Attempt ${attempt}:`,
+        status.statusCode,
+        status.statusDisplay
+      );
+
+
+
+
+      /**
+       * Still running
+       */
+
+      if(PENDING_CODES.has(status.statusCode)){
+
+        log.debug(
+          "Submission pending..."
+        );
+
+        continue;
+      }
+
+
+
+
+      /**
+       * Accepted
+       */
+
+      if(
+        status.statusCode === 10 ||
+        status.statusDisplay === "Accepted"
+      ){
+
+
+
+        log.info(
+          "Accepted submission:",
           submissionId
         );
-      } else {
-        log.debug('Not accepted:', details.statusDisplay || details.statusCode);
+
+
+
+        /**
+         * Second request:
+         * Get complete submission details
+         */
+
+
+        const detailRes = await fetch(
+          'https://leetcode.com/graphql/',
+          {
+
+            method:'POST',
+
+
+            headers:{
+              'Content-Type':'application/json',
+              'x-csrftoken':getCsrfToken()
+            },
+
+
+            credentials:'include',
+
+
+
+            body:JSON.stringify({
+
+              operationName:"submissionDetails",
+
+              query:fullQuery,
+
+
+              variables:{
+                submissionId:Number(submissionId)
+              }
+
+            })
+
+          }
+        );
+
+
+
+
+        const detailJson =
+          await detailRes.json();
+
+
+
+        const details =
+          detailJson?.data?.submissionDetails;
+
+
+
+
+        if(!details){
+
+          log.error(
+            "Failed getting full submission"
+          );
+
+          return;
+        }
+
+
+
+
+        onAccepted(
+
+          {
+
+            state:"SUCCESS",
+
+            status_msg:"Accepted",
+
+
+            status_runtime:
+              details.runtimeDisplay ??
+              String(details.runtime ?? "N/A"),
+
+
+
+            status_memory:
+              details.memoryDisplay ??
+              String(details.memory ?? "N/A"),
+
+
+
+            runtime_percentile:
+              details.runtimePercentile,
+
+
+            memory_percentile:
+              details.memoryPercentile,
+
+
+
+            lang:
+              details.lang?.name ?? "unknown",
+
+
+
+            submission_id:
+              submissionId,
+
+
+
+            question_id:
+              details.question?.questionId
+              ? String(details.question.questionId)
+              : undefined,
+
+
+
+            code:
+              details.code ?? "",
+          },
+
+
+          submissionId
+
+        );
+
       }
+      else{
+
+        log.debug(
+          "Not accepted:",
+          status.statusDisplay
+        );
+
+      }
+
+
+
       return;
-    } catch (err) {
-      log.warn(`Attempt ${attempt}: fetch error:`, err);
+
+
+
     }
+
+    catch(err){
+
+      log.warn(
+        `Attempt ${attempt} failed`,
+        err
+      );
+
+    }
+
+
   }
 
-  log.warn('Gave up polling for submission:', submissionId);
+
+
+  log.warn(
+    "Stopped checking:",
+    submissionId
+  );
+
 }
 
-function getCsrfToken(): string {
-  const match = document.cookie.match(/csrftoken=([^;]+)/);
-  return match ? match[1] : '';
+
+
+
+function getCsrfToken():string{
+
+  const match =
+    document.cookie.match(
+      /csrftoken=([^;]+)/
+    );
+
+
+  return match
+    ? match[1]
+    : "";
+
 }
 
-/** Kept for API compatibility — detection now happens via URL in index.ts */
-export function installDetector(_onAccepted: AcceptedCallback): void {
-  log.info('Detector ready (URL-based mode).');
+
+
+/**
+ * Kept for compatibility
+ */
+export function installDetector(
+  _onAccepted:AcceptedCallback
+):void{
+
+  log.info(
+    "Detector ready"
+  );
+
 }

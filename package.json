@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
+    "@types/webextension-polyfill": "^0.12.5",
     "@typescript-eslint/eslint-plugin": "^8.33.0",
     "@typescript-eslint/parser": "^8.33.0",
     "@vitejs/plugin-react": "^4.7.0",
@@ -39,12 +40,14 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
+    "@types/firefox-webext-browser": "^143.0.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.17.0",
     "recharts": "^3.8.1",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "webextension-polyfill": "^0.12.0"
   }
 }

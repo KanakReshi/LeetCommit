@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import browser from 'webextension-polyfill';
 
 export default function OverviewPage() {
   const [totalSolved, setTotalSolved] = useState<number | string>('--');
@@ -10,9 +11,9 @@ export default function OverviewPage() {
         
         // Accurate total solved
         if (res.exactDifficulties) {
-           const e = res.exactDifficulties['Easy'] || 0;
-           const m = res.exactDifficulties['Medium'] || 0;
-           const h = res.exactDifficulties['Hard'] || 0;
+           const e = (res.exactDifficulties as Record<string, number>)['Easy'] || 0;
+           const m = (res.exactDifficulties as Record<string, number>)['Medium'] || 0;
+           const h = (res.exactDifficulties as Record<string, number>)['Hard'] || 0;
            setTotalSolved(e + m + h);
         } else {
            const submissions = res.submissions || [];
@@ -21,7 +22,7 @@ export default function OverviewPage() {
            setTotalSolved(uniqueSlugs.size);
         }
 
-        const submissions = res.submissions || [];
+        const submissions = (res.submissions as any[]) || [];
         if (submissions.length === 0) {
           setCurrentStreak(0);
           return;

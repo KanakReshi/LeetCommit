@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Library, LineChart, Lightbulb, Activity, LogOut } from 'lucide-react';
 import clsx from 'clsx';
+import browser from 'webextension-polyfill';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;

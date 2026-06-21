@@ -30,22 +30,25 @@ export interface LeetCodeProblem {
   difficulty: Difficulty;
   /** Topic tags, e.g. ["Array", "Hash Table"] */
   tags: string[];
+  /** LeetCode category, e.g. "Algorithms", "Database", "Shell" */
+  categoryTitle?: string;
+  /** Raw HTML description from LeetCode's content field */
+  descriptionHtml?: string;
 }
 
 /** Data extracted from an accepted submission response */
 export interface LeetCodeSubmission {
-  /** Submission ID assigned by LeetCode */
-  submissionId: string;
-  /** Programming language used */
-  language: string;
-  /** Runtime in ms, e.g. "4 ms" */
-  runtime: string;
-  /** Memory usage, e.g. "42.3 MB" */
-  memory: string;
-  /** Timestamp of the submission (epoch ms) */
-  timestamp: number;
-  /** Source code of the submission (if available) */
-  code?: string;
+    id: string;
+    title: string;
+    slug: string;
+    language: string;
+    code: string;
+    status: number;
+    runtime?: string;
+    memory?: string;
+    runtimePercentile?: number;
+    memoryPercentile?: number;
+    timestamp: number;
 }
 
 /** Combined payload sent to the backend API */
@@ -68,6 +71,7 @@ export interface GraphQLSubmissionCheckResponse {
       lang: string;
       runtime: string;
       memory: string;
+      user:any,
       question?: {
         questionId: string;
         title: string;
@@ -89,6 +93,11 @@ export interface GraphQLSubmissionStatusResponse {
   status_msg: string;
   status_runtime: string;
   status_memory: string;
+  user?:string,
+  /** Percentile beaten for runtime speed, e.g. 98.5 */
+  runtime_percentile?: number;
+  /** Percentile beaten for memory usage, e.g. 75.2 */
+  memory_percentile?: number;
   lang: string;
   submission_id: string;
   question_id?: string;

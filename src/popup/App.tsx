@@ -16,9 +16,9 @@ export default function App() {
       setIsLoggedIn(true);
       return;
     }
-    browser.storage.local.get('token').then((result) => {
-      const token = result.token as { accessToken?: string } | undefined;
-      setIsLoggedIn(!!token?.accessToken);
+    browser.storage.local.get('github').then((result) => {
+      const github = result.github as { token?: string } | undefined;
+      setIsLoggedIn(!!github?.token);
     });
   }, []);
 

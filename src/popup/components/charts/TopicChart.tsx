@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface TopicChartProps {
@@ -46,7 +46,7 @@ export default function TopicChart({ data }: TopicChartProps) {
             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
           />
           <Bar dataKey="solved" name="Problems Solved" radius={[0, 4, 4, 0]}>
-            {chartData.map((entry, index) => (
+            {chartData.map((_, index) => (
               <Cell key={`cell-${index}`} fill="#0ea5e9" />
             ))}
           </Bar>
