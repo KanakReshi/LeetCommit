@@ -45,7 +45,9 @@ export async function sendSubmissionToGithub(payload: SubmissionPayload): Promis
                          (payload.problem.descriptionHtml || 'No description available.');
   const readmeContent = btoa(unescape(encodeURIComponent(readmeMarkdown)));
 
-  const commitMessage = `Time: ${payload.submission.runtime} (${payload.submission.runtimePercentile || 0}%) | Memory: ${payload.submission.memory} (${payload.submission.memoryPercentile || 0}%) - LeetCommit`;
+  const rP = Number((payload.submission.runtimePercentile || 0).toFixed(2));
+  const mP = Number((payload.submission.memoryPercentile || 0).toFixed(2));
+  const commitMessage = `Time: ${payload.submission.runtime} (${rP}%) | Memory: ${payload.submission.memory} (${mP}%) - LeetCommit`;
 
   try {
     await uploadFileToGithub(token, username, repo, branch, codeFilePath, codeContent, commitMessage);

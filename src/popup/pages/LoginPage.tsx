@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import browser from 'webextension-polyfill';
 
@@ -16,6 +16,19 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [token, setToken] = useState('');
 
   const [repo, setRepo] = useState('');
+
+  useEffect(() => {
+    if (typeof browser !== 'undefined' && browser.storage) {
+      browser.storage.local.get('github').then((res) => {
+        const github = res.github as any;
+        if (github) {
+          setUsername(github.username || '');
+          setRepo(github.repo || '');
+          setToken(github.token || '');
+        }
+      });
+    }
+  }, []);
 
   async function handleLogin() {
     setLoading(true);
