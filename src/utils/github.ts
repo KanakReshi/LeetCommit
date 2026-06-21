@@ -53,7 +53,10 @@ export async function sendSubmissionToGithub(payload: SubmissionPayload): Promis
     await uploadFileToGithub(token, username, repo, branch, codeFilePath, codeContent, commitMessage);
     // Add 1 second delay to avoid GitHub API 409 Conflict on rapid consecutive commits
     await new Promise(resolve => setTimeout(resolve, 1000));
-    await uploadFileToGithub(token, username, repo, branch, readmeFilePath, readmeContent, commitMessage);
+    
+    const readmeCommitMessage = `Added README.md file for ${payload.problem.title}`;
+    await uploadFileToGithub(token, username, repo, branch, readmeFilePath, readmeContent, readmeCommitMessage);
+    
     return { success: true };
   } catch (error) {
     console.error("GITHUB API SYNC ERROR:", error);
