@@ -17,7 +17,8 @@
   ],
   "host_permissions": [
     "https://leetcode.com/*",
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "https://github.com/*"
   ],
   "background": {
     "scripts": [

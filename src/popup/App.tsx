@@ -20,6 +20,14 @@ export default function App() {
       const github = result.github as { token?: string } | undefined;
       setIsLoggedIn(!!github?.token);
     });
+
+    // React live when the background finishes OAuth and writes the config.
+    const onChanged = (changes: Record<string, any>, area: string) => {
+      if (area !== 'local' || !('github' in changes)) return;
+      setIsLoggedIn(!!changes.github.newValue?.token);
+    };
+    browser.storage.onChanged.addListener(onChanged);
+    return () => browser.storage.onChanged.removeListener(onChanged);
   }, []);
 
   React.useEffect(() => {

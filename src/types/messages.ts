@@ -31,7 +31,15 @@ export type ExtensionMessage =
 
     | {
         type: "LOGOUT";
-    };
+    }
+
+    /**
+     * Kick off GitHub Device Flow. The background returns the codes to show the
+     * user AND starts polling on its own (so auth completes even if the popup
+     * closes). The chosen repo is passed in so the background can save the full
+     * config once the token arrives.
+     */
+    | { type: "GITHUB_OAUTH_START"; payload: { repo: string } };
 
 
 
@@ -82,4 +90,16 @@ export type ExtensionResponse =
 
             enabled:boolean;
         }
+    }
+
+    /** Codes returned after GITHUB_OAUTH_START */
+    | {
+        type: "OAUTH_DEVICE_RESPONSE";
+        payload: {
+            deviceCode: string;
+            userCode: string;
+            verificationUri: string;
+            interval: number;
+            expiresIn: number;
+        };
     };
