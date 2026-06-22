@@ -56,3 +56,20 @@ export const EXTENSION = {
   NAME: 'LeetCommit',
   VERSION: '1.0.0',
 } as const;
+
+/**
+ * GitHub OAuth – Device Flow (no backend / no client_secret needed).
+ *
+ * How to get a CLIENT_ID:
+ *   1. Go to https://github.com/settings/developers → "New OAuth App"
+ *   2. Set any Homepage URL and Callback URL (they are unused for device flow)
+ *   3. After creation, enable "Device Flow" on the app settings page
+ *   4. Copy the Client ID and paste it below
+ */
+export const GITHUB_OAUTH = {
+  CLIENT_ID: 'Ov23liYRPjjNNnw4WDJG',
+  SCOPE: 'repo',
+  DEVICE_CODE_URL: 'https://github.com/login/device/code',
+  ACCESS_TOKEN_URL: 'https://github.com/login/oauth/access_token',
+  DEFAULT_REPO: 'LeetCode-Solutions',
+} as const;

@@ -12,8 +12,10 @@ import type { ExtensionMessage, ExtensionResponse } from '@/types/messages';
 import type { SubmissionPayload } from '@/types/leetcode';
 
 import { retryFailed, submitSubmission } from './submitter';
+import { initiateDeviceFlow, pollDeviceFlow } from './auth';
 
 import { getStorage, setStorage } from '@/utils/storage';
+import { GITHUB_OAUTH } from '@/constants';
 
 import { createLogger } from '@/utils/logger';
 
@@ -43,6 +45,9 @@ export async function handleMessage(
 
     case 'LOGOUT':
       return handleLogout();
+
+    case 'GITHUB_OAUTH_START':
+      return handleGithubOAuthStart(message.payload.repo);
 
     default:
       const _exhaustive: never = message;
@@ -148,4 +153,110 @@ async function handleLogout(): Promise<ExtensionResponse> {
 
     message: 'GitHub disconnected',
   };
+}
+
+async function handleGithubOAuthStart(repo: string): Promise<ExtensionResponse> {
+  try {
+    const init = await initiateDeviceFlow();
+
+    // Persist the in-progress state so the popup can restore it if reopened.
+    await setStorage({
+      oauthPending: {
+        repo,
+        deviceCode: init.deviceCode,
+        userCode: init.userCode,
+        verificationUri: init.verificationUri,
+        interval: init.interval,
+      },
+      oauthError: null,
+    });
+
+    // Poll in the background (fire-and-forget) so login completes even after
+    // the popup closes when the user switches to the GitHub tab.
+    void runDeviceFlowPolling(init.deviceCode, init.interval, init.expiresIn, repo);
+
+    return {
+      type: 'OAUTH_DEVICE_RESPONSE',
+      payload: {
+        deviceCode: init.deviceCode,
+        userCode: init.userCode,
+        verificationUri: init.verificationUri,
+        interval: init.interval,
+        expiresIn: init.expiresIn,
+      },
+    };
+  } catch (error) {
+    return {
+      type: 'ERROR',
+      message: error instanceof Error ? error.message : 'Failed to start GitHub auth',
+    };
+  }
+}
+
+/**
+ * Polls GitHub until the user authorizes, then writes the GitHub config to
+ * storage. Both the popup and the dashboard react to that storage write.
+ */
+async function runDeviceFlowPolling(
+  deviceCode: string,
+  interval: number,
+  expiresIn: number,
+  repo: string
+): Promise<void> {
+  const deadline = Date.now() + expiresIn * 1000;
+  let waitMs = interval * 1000;
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+
+    // Stop if the user cancelled (pending cleared) or started a new flow.
+    const { oauthPending } = await getStorage('oauthPending');
+    if (!oauthPending || oauthPending.deviceCode !== deviceCode) return;
+
+    let result;
+    try {
+      result = await pollDeviceFlow(deviceCode);
+    } catch (error) {
+      await setStorage({
+        oauthError: error instanceof Error ? error.message : 'Polling failed',
+        oauthPending: null,
+      });
+      return;
+    }
+
+    if (result.status === 'authorized') {
+      await setStorage({
+        github: {
+          username: result.username,
+          token: result.token,
+          repo: repo || GITHUB_OAUTH.DEFAULT_REPO,
+          branch: 'main',
+        },
+        enabled: true,
+        oauthPending: null,
+        oauthError: null,
+      });
+      log.info('GitHub OAuth complete for', result.username);
+      return;
+    }
+
+    if (result.status === 'slow_down') {
+      waitMs += 5000;
+      continue;
+    }
+
+    if (result.status === 'expired') {
+      await setStorage({ oauthError: 'Code expired. Please try again.', oauthPending: null });
+      return;
+    }
+
+    if (result.status === 'error') {
+      await setStorage({ oauthError: result.message, oauthPending: null });
+      return;
+    }
+
+    // status === 'pending' → keep polling
+  }
+
+  await setStorage({ oauthError: 'Authorization timed out. Please try again.', oauthPending: null });
 }

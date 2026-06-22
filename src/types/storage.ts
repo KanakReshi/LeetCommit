@@ -2,6 +2,16 @@ import type { SubmissionPayload } from "./leetcode";
 import type { GitHubConfig } from "./github";
 
 
+/** In-progress GitHub Device Flow state, persisted so it survives the popup closing. */
+export interface OAuthPending {
+    repo: string;
+    deviceCode: string;
+    userCode: string;
+    verificationUri: string;
+    interval: number;
+}
+
+
 export interface StorageSchema {
 
 
@@ -9,6 +19,14 @@ export interface StorageSchema {
 
 
     github: GitHubConfig | null;
+
+
+    /** Set while a device-flow login is running; cleared on success/failure. */
+    oauthPending: OAuthPending | null;
+
+
+    /** Last OAuth failure message, shown by the login UI. */
+    oauthError: string | null;
 
 
     totalDetected:number;
@@ -46,6 +64,12 @@ export const DEFAULT_STORAGE:StorageSchema = {
 
 
     github:null,
+
+
+    oauthPending:null,
+
+
+    oauthError:null,
 
 
     totalDetected:0,
