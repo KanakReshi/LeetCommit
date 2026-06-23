@@ -33,6 +33,7 @@ jobs:
       
       - name: Fix lint Error
         run: npm run lint:fix
+        
       - name: Build Extension (Vite)
         run: npm run build
         
