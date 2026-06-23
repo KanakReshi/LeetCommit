@@ -49,7 +49,7 @@ export async function initiateDeviceFlow(): Promise<DeviceFlowInit> {
 
 export type PollResult =
   | { status: 'pending' }
-  | { status: 'slow_down' }          // GitHub wants us to back off
+  | { status: 'slow_down' } // GitHub wants us to back off
   | { status: 'authorized'; token: string; username: string }
   | { status: 'expired' }
   | { status: 'error'; message: string };
@@ -76,11 +76,17 @@ export async function pollDeviceFlow(deviceCode: string): Promise<PollResult> {
   }
 
   switch (data.error) {
-    case 'authorization_pending': return { status: 'pending' };
-    case 'slow_down':             return { status: 'slow_down' };
-    case 'expired_token':         return { status: 'expired' };
+    case 'authorization_pending':
+      return { status: 'pending' };
+    case 'slow_down':
+      return { status: 'slow_down' };
+    case 'expired_token':
+      return { status: 'expired' };
     default:
-      return { status: 'error', message: data.error_description ?? data.error ?? 'Unknown OAuth error' };
+      return {
+        status: 'error',
+        message: data.error_description ?? data.error ?? 'Unknown OAuth error',
+      };
   }
 }
 

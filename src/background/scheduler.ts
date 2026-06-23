@@ -28,19 +28,22 @@ export class Scheduler {
     browserApi.alarms.onAlarm.addListener(this.handleAlarm.bind(this));
 
     // Ensure alarm is created
-    browserApi.alarms.get(SNAPSHOT_ALARM_NAME).then((alarm) => {
-      if (!alarm) {
-        log.info(`Creating new alarm: ${SNAPSHOT_ALARM_NAME}`);
-        browserApi.alarms.create(SNAPSHOT_ALARM_NAME, {
-          periodInMinutes: SNAPSHOT_INTERVAL_MINUTES,
-        });
+    browserApi.alarms
+      .get(SNAPSHOT_ALARM_NAME)
+      .then((alarm) => {
+        if (!alarm) {
+          log.info(`Creating new alarm: ${SNAPSHOT_ALARM_NAME}`);
+          browserApi.alarms.create(SNAPSHOT_ALARM_NAME, {
+            periodInMinutes: SNAPSHOT_INTERVAL_MINUTES,
+          });
 
-        // Run an initial sync on startup asynchronously
-        setTimeout(() => {
-          this.syncSnapshot().catch((err) => log.error('Initial snapshot sync failed:', err));
-        }, 5000);
-      }
-    }).catch((err) => log.error('Failed to get alarm:', err));
+          // Run an initial sync on startup asynchronously
+          setTimeout(() => {
+            this.syncSnapshot().catch((err) => log.error('Initial snapshot sync failed:', err));
+          }, 5000);
+        }
+      })
+      .catch((err) => log.error('Failed to get alarm:', err));
   }
 
   /**

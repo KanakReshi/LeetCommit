@@ -28,21 +28,30 @@ export async function sendSubmissionToGithub(payload: SubmissionPayload): Promis
     };
   }
 
-  const formattedTitle = payload.problem.title.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+  const formattedTitle = payload.problem.title
+    .replace(/[^a-zA-Z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
   const category = payload.problem.categoryTitle || 'Algorithms';
   const questionNumber = payload.problem.questionId;
-  
+
   const baseFolder = `${category}/${questionNumber}-${formattedTitle}`;
   const codeFilePath = `${baseFolder}/${formattedTitle}.${getExtension(payload.submission.language)}`;
   const readmeFilePath = `${baseFolder}/README.md`;
 
   const codeContent = btoa(unescape(encodeURIComponent(payload.submission.code || '')));
-  
-  const diffColor = payload.problem.difficulty === 'Easy' ? 'success' : payload.problem.difficulty === 'Medium' ? 'warning' : 'critical';
-  const readmeMarkdown = `<h2><a href="https://leetcode.com/problems/${payload.problem.titleSlug}">${payload.problem.questionId}. ${payload.problem.title}</a></h2>\n\n` + 
-                         `<h3><img src="https://img.shields.io/badge/Difficulty-${payload.problem.difficulty}-${diffColor}?style=for-the-badge" alt="Difficulty"></h3>\n\n` + 
-                         `--- \n\n` +
-                         (payload.problem.descriptionHtml || 'No description available.');
+
+  const diffColor =
+    payload.problem.difficulty === 'Easy'
+      ? 'success'
+      : payload.problem.difficulty === 'Medium'
+        ? 'warning'
+        : 'critical';
+  const readmeMarkdown =
+    `<h2><a href="https://leetcode.com/problems/${payload.problem.titleSlug}">${payload.problem.questionId}. ${payload.problem.title}</a></h2>\n\n` +
+    `<h3><img src="https://img.shields.io/badge/Difficulty-${payload.problem.difficulty}-${diffColor}?style=for-the-badge" alt="Difficulty"></h3>\n\n` +
+    `--- \n\n` +
+    (payload.problem.descriptionHtml || 'No description available.');
   const readmeContent = btoa(unescape(encodeURIComponent(readmeMarkdown)));
 
   const rP = Number((payload.submission.runtimePercentile || 0).toFixed(2));
@@ -50,18 +59,34 @@ export async function sendSubmissionToGithub(payload: SubmissionPayload): Promis
   let commitMessage = `Time: ${payload.submission.runtime} (${rP}%) | Memory: ${payload.submission.memory} (${mP}%) - LeetCommit`;
 
   try {
-    const codePushed = await uploadFileToGithub(token, username, repo, branch, codeFilePath, codeContent, commitMessage);
-    
+    const codePushed = await uploadFileToGithub(
+      token,
+      username,
+      repo,
+      branch,
+      codeFilePath,
+      codeContent,
+      commitMessage
+    );
+
     if (codePushed) {
       // Add 1 second delay to avoid GitHub API 409 Conflict on rapid consecutive commits
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     commitMessage = `Added README.md file for ${payload.problem.title}`;
-    await uploadFileToGithub(token, username, repo, branch, readmeFilePath, readmeContent, commitMessage);
-    
+    await uploadFileToGithub(
+      token,
+      username,
+      repo,
+      branch,
+      readmeFilePath,
+      readmeContent,
+      commitMessage
+    );
+
     return { success: true };
   } catch (error) {
-    console.error("GITHUB API SYNC ERROR:", error);
+    console.error('GITHUB API SYNC ERROR:', error);
     return {
       success: false,
       message: String(error),
@@ -69,25 +94,33 @@ export async function sendSubmissionToGithub(payload: SubmissionPayload): Promis
   }
 }
 
-async function uploadFileToGithub(token: string, username: string, repo: string, branch: string, path: string, contentBase64: string, message: string): Promise<boolean> {
+async function uploadFileToGithub(
+  token: string,
+  username: string,
+  repo: string,
+  branch: string,
+  path: string,
+  contentBase64: string,
+  message: string
+): Promise<boolean> {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const url = `https://api.github.com/repos/${username}/${repo}/contents/${encodedPath}`;
-  
+
   let sha: string | undefined;
   let existingContent: string | undefined;
   try {
     const getRes = await fetch(`${url}?ref=${branch}`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json'
-      }
+        Accept: 'application/vnd.github.v3+json',
+      },
     });
     if (getRes.ok) {
       const data = await getRes.json();
       sha = data.sha;
       existingContent = data.content;
     }
-  } catch (err) {
+  } catch {
     // Ignore error if file doesn't exist
   }
 
@@ -110,7 +143,7 @@ async function uploadFileToGithub(token: string, username: string, repo: string,
       message,
       content: contentBase64,
       branch,
-      ...(sha ? { sha } : {})
+      ...(sha ? { sha } : {}),
     }),
   });
 

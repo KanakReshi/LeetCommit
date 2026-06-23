@@ -10,6 +10,7 @@
 
 import type { ExtensionMessage, ExtensionResponse } from '@/types/messages';
 import type { SubmissionPayload } from '@/types/leetcode';
+import type { StorageSchema } from '@/types/storage';
 
 import { retryFailed, submitSubmission } from './submitter';
 import { initiateDeviceFlow, pollDeviceFlow } from './auth';
@@ -49,14 +50,15 @@ export async function handleMessage(
     case 'GITHUB_OAUTH_START':
       return handleGithubOAuthStart(message.payload.repo);
 
-    default:
-      const _exhaustive: never = message;
+    default: {
+      const _exhaustive: string = message;
 
       return {
         type: 'ERROR',
 
         message: `Unknown message ${_exhaustive}`,
       };
+    }
   }
 }
 
@@ -113,8 +115,8 @@ async function handleGetConfig(): Promise<ExtensionResponse> {
   };
 }
 
-async function handleUpdateConfig(updates: any): Promise<ExtensionResponse> {
-  await setStorage(updates);
+async function handleUpdateConfig(updates: unknown): Promise<ExtensionResponse> {
+  await setStorage(updates as Partial<StorageSchema>);
 
   log.info('Config updated');
 
@@ -258,5 +260,8 @@ async function runDeviceFlowPolling(
     // status === 'pending' → keep polling
   }
 
-  await setStorage({ oauthError: 'Authorization timed out. Please try again.', oauthPending: null });
+  await setStorage({
+    oauthError: 'Authorization timed out. Please try again.',
+    oauthPending: null,
+  });
 }

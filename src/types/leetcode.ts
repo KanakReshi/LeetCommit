@@ -38,17 +38,17 @@ export interface LeetCodeProblem {
 
 /** Data extracted from an accepted submission response */
 export interface LeetCodeSubmission {
-    id: string;
-    title: string;
-    slug: string;
-    language: string;
-    code: string;
-    status: number;
-    runtime?: string;
-    memory?: string;
-    runtimePercentile?: number;
-    memoryPercentile?: number;
-    timestamp: number;
+  id: string;
+  title: string;
+  slug: string;
+  language: string;
+  code: string;
+  status: number;
+  runtime?: string;
+  memory?: string;
+  runtimePercentile?: number;
+  memoryPercentile?: number;
+  timestamp: number;
 }
 
 /** Combined payload sent to the backend API */
@@ -71,7 +71,7 @@ export interface GraphQLSubmissionCheckResponse {
       lang: string;
       runtime: string;
       memory: string;
-      user:any,
+      user: string;
       question?: {
         questionId: string;
         title: string;
@@ -93,7 +93,7 @@ export interface GraphQLSubmissionStatusResponse {
   status_msg: string;
   status_runtime: string;
   status_memory: string;
-  user?:string,
+  user?: string;
   /** Percentile beaten for runtime speed, e.g. 98.5 */
   runtime_percentile?: number;
   /** Percentile beaten for memory usage, e.g. 75.2 */

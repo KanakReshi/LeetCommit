@@ -18,7 +18,6 @@ export type AcceptedCallback = (
   submissionId: string
 ) => void;
 
-
 /**
  * Extract submission ID from URL
  */
@@ -27,9 +26,7 @@ export function extractSubmissionIdFromUrl(url: string): string | null {
   return match ? match[1] : null;
 }
 
-
 const PENDING_CODES = new Set([0, 16]);
-
 
 /**
  * Main submission checker
@@ -38,9 +35,7 @@ export async function checkSubmissionResult(
   submissionId: string,
   onAccepted: AcceptedCallback
 ): Promise<void> {
-
   log.info('Checking submission:', submissionId);
-
 
   const statusQuery = `
     query submissionDetails($submissionId: Int!) {
@@ -50,7 +45,6 @@ export async function checkSubmissionResult(
       }
     }
   `;
-
 
   const fullQuery = `
     query submissionDetails($submissionId: Int!) {
@@ -134,309 +128,155 @@ export async function checkSubmissionResult(
     }
   `;
 
-
-
   const MAX_ATTEMPTS = 12;
   const DELAY_MS = 3000;
 
-
-
-  for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
-
-
-    if(attempt > 1){
-      await new Promise(r => setTimeout(r, DELAY_MS));
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      await new Promise((r) => setTimeout(r, DELAY_MS));
     }
 
-
-
     try {
-
-
       /**
        * First request:
        * Check whether result is ready
        */
 
-      const statusRes = await fetch(
-        'https://leetcode.com/graphql/',
-        {
-          method:'POST',
+      const statusRes = await fetch('https://leetcode.com/graphql/', {
+        method: 'POST',
 
-          headers:{
-            'Content-Type':'application/json',
-            'x-csrftoken':getCsrfToken()
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrftoken': getCsrfToken(),
+        },
+
+        credentials: 'include',
+
+        body: JSON.stringify({
+          operationName: 'submissionDetails',
+
+          query: statusQuery,
+
+          variables: {
+            submissionId: Number(submissionId),
           },
-
-          credentials:'include',
-
-
-          body:JSON.stringify({
-
-            operationName:"submissionDetails",
-
-            query:statusQuery,
-
-            variables:{
-              submissionId:Number(submissionId)
-            }
-
-          })
-        }
-      );
-
-
+        }),
+      });
 
       const statusJson = await statusRes.json();
 
+      const status = statusJson?.data?.submissionDetails;
 
-      const status =
-        statusJson?.data?.submissionDetails;
-
-
-
-      if(!status){
-
-        log.warn(
-          `Attempt ${attempt}: no submission data`
-        );
+      if (!status) {
+        log.warn(`Attempt ${attempt}: no submission data`);
 
         continue;
       }
 
-
-
-      log.debug(
-        `Attempt ${attempt}:`,
-        status.statusCode,
-        status.statusDisplay
-      );
-
-
-
+      log.debug(`Attempt ${attempt}:`, status.statusCode, status.statusDisplay);
 
       /**
        * Still running
        */
 
-      if(PENDING_CODES.has(status.statusCode)){
-
-        log.debug(
-          "Submission pending..."
-        );
+      if (PENDING_CODES.has(status.statusCode)) {
+        log.debug('Submission pending...');
 
         continue;
       }
-
-
-
 
       /**
        * Accepted
        */
 
-      if(
-        status.statusCode === 10 ||
-        status.statusDisplay === "Accepted"
-      ){
-
-
-
-        log.info(
-          "Accepted submission:",
-          submissionId
-        );
-
-
+      if (status.statusCode === 10 || status.statusDisplay === 'Accepted') {
+        log.info('Accepted submission:', submissionId);
 
         /**
          * Second request:
          * Get complete submission details
          */
 
+        const detailRes = await fetch('https://leetcode.com/graphql/', {
+          method: 'POST',
 
-        const detailRes = await fetch(
-          'https://leetcode.com/graphql/',
-          {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrftoken': getCsrfToken(),
+          },
 
-            method:'POST',
+          credentials: 'include',
 
+          body: JSON.stringify({
+            operationName: 'submissionDetails',
 
-            headers:{
-              'Content-Type':'application/json',
-              'x-csrftoken':getCsrfToken()
+            query: fullQuery,
+
+            variables: {
+              submissionId: Number(submissionId),
             },
+          }),
+        });
 
+        const detailJson = await detailRes.json();
 
-            credentials:'include',
+        const details = detailJson?.data?.submissionDetails;
 
-
-
-            body:JSON.stringify({
-
-              operationName:"submissionDetails",
-
-              query:fullQuery,
-
-
-              variables:{
-                submissionId:Number(submissionId)
-              }
-
-            })
-
-          }
-        );
-
-
-
-
-        const detailJson =
-          await detailRes.json();
-
-
-
-        const details =
-          detailJson?.data?.submissionDetails;
-
-
-
-
-        if(!details){
-
-          log.error(
-            "Failed getting full submission"
-          );
+        if (!details) {
+          log.error('Failed getting full submission');
 
           return;
         }
 
-
-
-
         onAccepted(
-
           {
+            state: 'SUCCESS',
 
-            state:"SUCCESS",
+            status_msg: 'Accepted',
 
-            status_msg:"Accepted",
+            status_runtime: details.runtimeDisplay ?? String(details.runtime ?? 'N/A'),
 
+            status_memory: details.memoryDisplay ?? String(details.memory ?? 'N/A'),
 
-            status_runtime:
-              details.runtimeDisplay ??
-              String(details.runtime ?? "N/A"),
+            runtime_percentile: details.runtimePercentile,
 
+            memory_percentile: details.memoryPercentile,
 
+            lang: details.lang?.name ?? 'unknown',
 
-            status_memory:
-              details.memoryDisplay ??
-              String(details.memory ?? "N/A"),
+            submission_id: submissionId,
 
-
-
-            runtime_percentile:
-              details.runtimePercentile,
-
-
-            memory_percentile:
-              details.memoryPercentile,
-
-
-
-            lang:
-              details.lang?.name ?? "unknown",
-
-
-
-            submission_id:
-              submissionId,
-
-
-
-            question_id:
-              details.question?.questionId
+            question_id: details.question?.questionId
               ? String(details.question.questionId)
               : undefined,
 
-
-
-            code:
-              details.code ?? "",
+            code: details.code ?? '',
           },
 
-
           submissionId
-
         );
-
+      } else {
+        log.debug('Not accepted:', status.statusDisplay);
       }
-      else{
-
-        log.debug(
-          "Not accepted:",
-          status.statusDisplay
-        );
-
-      }
-
-
 
       return;
-
-
-
+    } catch (err) {
+      log.warn(`Attempt ${attempt} failed`, err);
     }
-
-    catch(err){
-
-      log.warn(
-        `Attempt ${attempt} failed`,
-        err
-      );
-
-    }
-
-
   }
 
-
-
-  log.warn(
-    "Stopped checking:",
-    submissionId
-  );
-
+  log.warn('Stopped checking:', submissionId);
 }
 
+function getCsrfToken(): string {
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
 
-
-
-function getCsrfToken():string{
-
-  const match =
-    document.cookie.match(
-      /csrftoken=([^;]+)/
-    );
-
-
-  return match
-    ? match[1]
-    : "";
-
+  return match ? match[1] : '';
 }
-
-
 
 /**
  * Kept for compatibility
  */
-export function installDetector(
-  _onAccepted:AcceptedCallback
-):void{
-
-  log.info(
-    "Detector ready"
-  );
-
+export function installDetector(_onAccepted: AcceptedCallback): void {
+  log.info('Detector ready');
 }

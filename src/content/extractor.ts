@@ -12,6 +12,7 @@ import type {
   SubmissionPayload,
   GraphQLSubmissionStatusResponse,
   Difficulty,
+  LeetCodeSubmission,
 } from '@/types/leetcode';
 import { LEETCODE } from '@/constants';
 import { createLogger } from '@/utils/logger';
@@ -173,7 +174,7 @@ export async function buildSubmissionPayload(
     descriptionHtml: problemDetails.descriptionHtml,
   };
 
-  const submission: any = {
+  const submission: LeetCodeSubmission = {
     id: submissionId || responseData.submission_id || 'unknown',
     title: domData.title ?? slug,
     slug: slug,
