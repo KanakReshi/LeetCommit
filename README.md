@@ -1,41 +1,30 @@
 # LeetCommit
 
-> Automatically detect accepted LeetCode submissions, sync your progress to a personal dashboard, and push every solution directly to your GitHub — all from a Firefox extension.
+> Automatically detect accepted LeetCode submissions, sync your progress to a personal dashboard, and push every solution directly to your GitHub — all from a Firefox extension. **No backend required!**
 
 ---
 
 ## Table of Contents
 
-- [What It Does](#what-it-does)
+- [Features](#-features)
 - [Architecture Overview](#architecture-overview)
 - [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
-- [Part 1 — Backend Setup](#part-1--backend-setup)
-  - [1.1 Clone & Install](#11-clone--install)
-  - [1.2 Create a GitHub OAuth App](#12-create-a-github-oauth-app)
-  - [1.3 Configure Environment Variables](#13-configure-environment-variables)
-  - [1.4 Start the Database](#14-start-the-database)
-  - [1.5 Run Database Migrations](#15-run-database-migrations)
-  - [1.6 Start the Backend Server](#16-start-the-backend-server)
-- [Part 2 — Extension Setup](#part-2--extension-setup)
-  - [2.1 Install Extension Dependencies](#21-install-extension-dependencies)
-  - [2.2 Build the Extension](#22-build-the-extension)
-  - [2.3 Load into Firefox](#23-load-into-firefox)
-- [Part 3 — First-Time Login](#part-3--first-time-login)
-- [Part 4 — Using the Extension](#part-4--using-the-extension)
-  - [Solving a Problem](#solving-a-problem)
-  - [The Dashboard](#the-dashboard)
+- [Extension Setup](#extension-setup)
+- [First-Time Setup](#first-time-setup)
+- [Using the Extension](#using-the-extension)
+  - [Dashboard Features](#dashboard-features)
 - [Development Workflow](#development-workflow)
-- [API Reference](#api-reference)
 - [Scripts Reference](#scripts-reference)
 - [Troubleshooting](#troubleshooting)
 - [Tech Stack](#tech-stack)
+- [License](#license)
 
 ---
 
 ## What It Does
 
-LeetCommit is a Firefox extension + backend system that makes your LeetCode grind visible and actionable.
+LeetCommit is a Firefox extension that makes your LeetCode grind visible and actionable.
 
 ```
 You solve a problem on LeetCode
@@ -43,29 +32,64 @@ You solve a problem on LeetCode
         ▼
 Extension detects "Accepted" (via XHR intercept)
         │
-        ▼
-Submission data sent to your backend
+        ├──► Extracts Description & Metadata via LeetCode GraphQL
         │
-        ├──► Stored in PostgreSQL database
-        │
-        └──► Solution code pushed to GitHub repo
-                  (LeetCode-Solutions/Array/Two-Sum.py)
+        └──► Solution code and README.md pushed directly to GitHub repo
+                  (LeetCode-Solutions/Algorithms/1-Two-Sum/Two-Sum.py)
 ```
-
-**Features at a glance:**
-
-| Feature | Description |
-|---|---|
-| Auto-detection | Intercepts LeetCode's internal polling API — no button clicks needed |
-| GitHub sync | Pushes solution code to a `LeetCode-Solutions` repo automatically |
-| Dashboard popup | Streak, solved count, topic breakdown, daily activity chart |
-| Smart recommendations | Detects weak topics and suggests next steps |
-| Offline queue | Failed submissions are queued and retried with exponential backoff |
-| Token refresh | Access tokens are refreshed automatically on 401 — no re-login needed |
 
 ---
 
-## Architecture Overview
+## 🎯 Features
+
+### **Core Submission Features**
+
+- **🔄 Direct GitHub Sync** — Automatically push accepted solutions to your GitHub repository with **zero backend required**
+- **🎯 Auto-detection** — Intercepts LeetCode's XHR API endpoints to detect "Accepted" submissions instantly (no manual triggers)
+- **📁 Structured Organization** — Automatically creates neat folder hierarchies: `<topic>/<question-id>-<title-kebab-case>/`
+- **📝 Rich README Generation** — Auto-generates `README.md` for each problem including:
+  - Problem description (extracted from LeetCode HTML)
+  - Difficulty badges with shields.io styling
+  - Time & Space complexity metrics
+  - Links back to LeetCode problem page
+- **⚡ Performance Metrics in Commits** — Commit messages include runtime & memory percentiles:
+  ```
+  Time: 40ms (90%) | Memory: 16MB (80%) - LeetCommit
+  ```
+- **🛡️ Smart Duplicate Prevention** — Skips pushing if code exactly matches latest GitHub version (prevents redundant commits)
+
+### **Dashboard & Analytics (Local-First)**
+
+- **📊 Overview Tab** — Total problems solved + current daily/weekly streak
+- **📚 Topics Tab** — Categorized problem breakdown by topic with strength/weakness detection
+- **📈 Analytics Tab** — Growth trends with interactive charts (difficulty distribution, daily activity)
+- **💡 Recommendations Tab** — AI-style personalized action plan based on weak areas
+- **⚡ Status Tab** — System configuration, sync history, and GitHub token management
+- **📱 Offline-First Design** — All data stored locally in browser; no external analytics
+
+### **Resilience & Background Processing**
+
+- **🔁 Retry Queue System** — Failed GitHub syncs automatically queue with exponential backoff
+- **⏰ Scheduled Sync** — 24-hour background stats sync with LeetCode (streak, solved count)
+- **🔐 Secure Token Storage** — GitHub tokens stored in browser.storage.local with typed encryption helpers
+- **🌐 Zero Backend Required** — All processing happens in-browser; direct GitHub API integration
+
+---
+
+## ✨ Why LeetCommit?
+
+| Challenge                           | Solution                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| **Losing progress**                 | All solutions automatically sync to GitHub + backed up with rich metadata |
+| **Forgetting what you solved**      | Dashboard shows streak, solved count, topic breakdown, and growth trends  |
+| **Weak areas unclear**              | Analytics identify strengths/weaknesses and recommend focus areas         |
+| **Manual GitHub commits tedious**   | One-click setup; everything after is automatic (no backend, no database)  |
+| **Performance metrics not tracked** | Commit messages include runtime/memory percentiles automatically          |
+| **Dashboard data privacy**          | All data stays local in your browser; no cloud storage required           |
+
+---
+
+## 🏗️ Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -90,12 +114,12 @@ Submission data sent to your backend
 │  │  handler.ts              │                           │
 │  │  → routes messages       │                           │
 │  │                          │                           │
-│  │  submitter.ts            │  POST /api/submissions    │
+│  │  submitter.ts            │  fetch to GitHub API      │
 │  │  → retry queue           │ ─────────────────────────┼──►
-│  │  → token refresh         │                           │
+│  │  → token configuration   │                           │
 │  │                          │                           │
-│  │  scheduler.ts            │  POST /api/snapshots      │
-│  │  → 24h snapshot sync     │ ─────────────────────────┼──►
+│  │  scheduler.ts            │  Queries LeetCode GraphQL │
+│  │  → 24h stats sync        │ ─────────────────────────┼──►
 │  └──────────────────────────┘                           │
 │                                                          │
 │  ┌──────────────────────────┐                           │
@@ -103,34 +127,11 @@ Submission data sent to your backend
 │  │   (React + Tailwind)     │                           │
 │  │                          │                           │
 │  │  Overview  │  Topics     │                           │
-│  │  Analytics │  Tips       │                           │
-│  │  Status                  │                           │
+│  │  Analytics │  Status     │                           │
 │  └──────────────────────────┘                           │
 └─────────────────────────────────────────────────────────┘
-                        │
-                        ▼
-         ┌──────────────────────────┐
-         │      Backend API         │
-         │   (Express + TypeScript) │
-         │                          │
-         │  POST /api/submissions   │──► PostgreSQL
-         │  POST /api/snapshots     │──► PostgreSQL
-         │  GET  /api/analytics     │◄── PostgreSQL
-         │  GET  /api/auth/github   │
-         │  GET  /api/auth/callback │──► GitHub OAuth
-         │  POST /api/auth/refresh  │
-         └──────────────┬───────────┘
-                        │
-                        ▼
-              ┌─────────────────┐
-              │  GitHub API     │
-              │  (Octokit)      │
-              │                 │
-              │  Creates repo   │
-              │  Commits code   │
-              │  per solution   │
-              └─────────────────┘
 ```
+
 ---
 
 ## Project Structure
@@ -142,114 +143,71 @@ LeetCommit/
 ├── vite.config.ts             # Multi-entry Vite build config
 ├── tsconfig.json              # TypeScript config (strict)
 ├── tailwind.config.js         # Tailwind CSS config
-├── docker-compose.yml         # PostgreSQL + backend (dev)
-├── docker-compose.prod.yml    # Production Docker setup
-├── .env.example               # Extension environment template
 │
 ├── src/                       # Extension source code
 │   │
-│   ├── types/                 # All TypeScript interfaces
-│   │   ├── leetcode.ts        # LeetCodeProblem, SubmissionPayload, etc.
-│   │   ├── messages.ts        # IPC message protocol (discriminated union)
-│   │   ├── storage.ts         # StorageSchema + defaults
-│   │   ├── navigation.ts      # PageContext, PageType
-│   │   └── global.d.ts        # browser.* API declarations
+│   ├── types/                 # TypeScript interfaces (Submission, Problem, Stats, etc.)
 │   │
-│   ├── constants/
-│   │   └── index.ts           # LEETCODE URLs, RETRY_CONFIG, HTTP_CONFIG
+│   ├── constants/             # Global constants and configuration
 │   │
 │   ├── utils/
-│   │   ├── logger.ts          # Namespaced console logger
+│   │   ├── github.ts          # GitHub API integration (Octokit wrapper)
 │   │   ├── storage.ts         # Typed browser.storage.local helpers
-│   │   └── api.ts             # HTTP client (sendSubmission)
+│   │   ├── logger.ts          # Namespaced console logger
+│   │   ├── api.ts             # Core API for GitHub sync
+│   │   └── markdown.ts        # README.md generation logic
 │   │
 │   ├── services/
-│   │   ├── StorageService.ts  # Auth token + settings CRUD (source of truth)
-│   │   └── LeetCodeGraphQLService.ts  # LeetCode GraphQL queries + cache
+│   │   ├── StorageService.ts  # Token + settings CRUD operations
+│   │   └── LeetCodeGraphQLService.ts  # LeetCode GraphQL queries (stats, problem details)
 │   │
 │   ├── content/               # Injected into leetcode.com pages
-│   │   ├── index.ts           # Entry point — bootstraps navigator + detector
-│   │   ├── detector.ts        # Monkey-patches XHR + fetch to catch submissions
-│   │   ├── extractor.ts       # Builds SubmissionPayload from DOM + response
-│   │   ├── navigator.ts       # SPA navigation detector (History API + MutationObserver)
-│   │   ├── dom-observer.ts    # DOM fallback for "Accepted" detection
-│   │   ├── scraper.ts         # Full page scraper (title, difficulty, code)
-│   │   └── emitter.ts         # Typed event emitter
+│   │   ├── detector.ts        # XHR intercept - detects "Accepted" submissions
+│   │   ├── extractor.ts       # Scrapes problem title, difficulty, tags
+│   │   └── index.ts           # Content script entry
 │   │
 │   ├── background/            # Service worker (runs in background)
-│   │   ├── index.ts           # Entry point — registers all listeners
-│   │   ├── handler.ts         # Message router
-│   │   ├── submitter.ts       # Retry queue + exponential backoff
-│   │   ├── auth.ts            # GitHub OAuth + token refresh
-│   │   └── scheduler.ts       # 24h alarm for snapshot sync
+│   │   ├── handler.ts         # Message router (content ↔ background)
+│   │   ├── submitter.ts       # GitHub sync + retry queue logic
+│   │   ├── scheduler.ts       # 24h stats sync scheduler
+│   │   ├── auth.ts            # Token validation & refresh
+│   │   └── index.ts           # Background worker entry
 │   │
-│   └── popup/                 # Extension popup UI
-│       ├── popup.html         # HTML shell
-│       ├── main.tsx           # React root
-│       ├── App.tsx            # Router + auto-sync on open
-│       ├── popup.css          # Base styles + Tailwind
-│       ├── pages/
-│       │   ├── OverviewPage.tsx       # Streak + total solved
-│       │   ├── TopicsPage.tsx         # Topic chart + weaknesses
-│       │   ├── AnalyticsPage.tsx      # Activity + difficulty charts
-│       │   ├── RecommendationsPage.tsx# AI-style tips
-│       │   └── SyncStatusPage.tsx     # Status + force sync
-│       └── components/
-│           ├── layout/
-│           │   └── DashboardLayout.tsx  # Sidebar navigation
-│           └── charts/
-│               ├── ActivityChart.tsx    # Area chart (recharts)
-│               ├── DifficultyChart.tsx  # Pie chart (recharts)
-│               └── TopicChart.tsx       # Horizontal bar chart (recharts)
-│
-└── backend/                   # Node.js API server
-    ├── .env.example           # Backend environment template
-    ├── Dockerfile
-    ├── Dockerfile.dev
-    ├── tsconfig.json
-    │
-    ├── prisma/
-    │   └── schema.prisma      # DB schema: User, Problem, Submission, Snapshot, etc.
-    │
-    ├── scripts/
-    │   └── migrate-repo.ts    # One-time GitHub repo migration helper
-    │
-    └── src/
-        ├── server.ts          # Express server entry point
-        ├── app.ts             # Express app + middleware setup
-        │
-        ├── config/
-        │   └── env.ts         # Zod-validated environment variables
-        │
-        ├── controllers/
-        │   ├── auth.controller.ts       # register, login
-        │   ├── oauth.controller.ts      # githubLogin, githubCallback, refreshToken
-        │   ├── submissions.controller.ts# saveSubmission, listSubmissions
-        │   ├── snapshots.controller.ts  # saveSnapshot, listSnapshots
-        │   └── analytics.controller.ts  # getDashboardAnalytics
-        │
-        ├── middlewares/
-        │   ├── auth.ts          # JWT requireAuth middleware
-        │   ├── validate.ts      # Zod request validation
-        │   └── errorHandler.ts  # Global error + 404 handler
-        │
-        ├── routes/
-        │   ├── auth.routes.ts
-        │   ├── submissions.routes.ts
-        │   ├── snapshots.routes.ts
-        │   └── analytics.routes.ts
-        │
-        ├── services/
-        │   ├── github.service.ts        # Octokit: create repo, commit file
-        │   ├── analytics.service.ts     # Streak, growth, daily activity (raw SQL)
-        │   ├── weakness.service.ts      # Weakest topic detection
-        │   └── recommendation.service.ts# Advice generation
-        │
-        └── utils/
-            ├── prisma.ts        # Prisma client singleton
-            ├── logger.ts        # Pino structured logger
-            └── languageMap.ts   # Language → file extension mapping
+│   └── popup/                 # Extension popup UI (React)
+│       ├── App.tsx            # Main routing container
+│       ├── main.tsx           # React entry point
+│       ├── popup.html         # HTML template
+│       ├── popup.css          # Popup styles (Tailwind)
+│       │
+│       ├── pages/             # Dashboard pages (all tabs)
+│       │   ├── OverviewPage.tsx      # Problems solved + streak
+│       │   ├── TopicsPage.tsx        # Topic breakdown & analysis
+│       │   ├── AnalyticsPage.tsx     # Charts & trends (Recharts)
+│       │   ├── RecommendationsPage.tsx  # AI recommendations
+│       │   ├── SyncStatusPage.tsx    # Config & queue monitor
+│       │   └── LoginPage.tsx         # GitHub auth flow
+│       │
+│       └── components/        # Reusable UI components
+│           ├── ChartCard.tsx  # Recharts wrapper
+│           ├── StatCard.tsx   # Metric display
+│           ├── TopicList.tsx  # Topic list renderer
+│           └── ...
 ```
+
+### Feature Implementation Breakdown
+
+| Feature                 | Responsible Module       | Key Files                                                    |
+| ----------------------- | ------------------------ | ------------------------------------------------------------ |
+| **Auto-detection**      | Content script           | `content/detector.ts`                                        |
+| **Metadata extraction** | Content script + GraphQL | `content/extractor.ts`, `services/LeetCodeGraphQLService.ts` |
+| **GitHub sync**         | Background worker        | `background/submitter.ts`, `utils/github.ts`                 |
+| **README generation**   | Utility layer            | `utils/markdown.ts`                                          |
+| **Retry queue**         | Background worker        | `background/submitter.ts`                                    |
+| **Stats & streak**      | Background scheduler     | `background/scheduler.ts`                                    |
+| **Dashboard UI**        | React popup              | `popup/pages/*`                                              |
+| **Charts & analytics**  | Recharts integration     | `popup/components/ChartCard.tsx`                             |
+| **Local storage**       | Service layer            | `services/StorageService.ts`                                 |
+| **Token management**    | Auth + Storage           | `background/auth.ts`, `services/StorageService.ts`           |
 
 ---
 
@@ -257,707 +215,186 @@ LeetCommit/
 
 Make sure the following are installed before you begin:
 
-| Tool | Version | Check |
-|---|---|---|
-| Node.js | ≥ 18.0.0 | `node --version` |
-| npm | ≥ 9.0.0 | `npm --version` |
-| Docker + Docker Compose | any recent | `docker --version` |
-| Firefox | any recent | — |
-| Git | any | `git --version` |
-
-> **No Docker?** You can run PostgreSQL natively — see [1.4 Start the Database](#14-start-the-database) for the manual option.
+| Tool    | Version    | Check            |
+| ------- | ---------- | ---------------- |
+| Node.js | ≥ 18.0.0   | `node --version` |
+| npm     | ≥ 9.0.0    | `npm --version`  |
+| Firefox | any recent | —                |
 
 ---
 
-## Part 1 — Backend Setup
+## 🚀 Quick Start
 
-### 1.1 Clone & Install
+```bash
+# 1. Clone and install
+git clone https://github.com/your-username/LeetCommit.git
+cd LeetCommit
+npm install
+
+# 2. Build the extension
+npm run build
+
+# 3. Load in Firefox
+# Open about:debugging → "This Firefox" → "Load Temporary Add-on..." → select dist/manifest.json
+
+# 4. Configure GitHub Token
+# Click LeetCommit → Status Tab → Enter GitHub credentials
+
+# 5. Start solving on LeetCode!
+# Your first accepted solution will auto-sync to GitHub
+```
+
+---
+
+## Extension Setup
+
+### 1. Clone & Install
 
 ```bash
 git clone https://github.com/your-username/LeetCommit.git
 cd LeetCommit
-
-# Install extension dependencies
-npm install
-
-# Install backend dependencies
-cd backend && npm install && cd ..
-```
-
----
-
-### 1.2 Create a GitHub OAuth App
-
-The extension uses GitHub OAuth to authenticate users and get write access to their GitHub repos.
-
-1. Go to **GitHub → Settings → Developer settings → OAuth Apps**
-
-   ```
-   https://github.com/settings/developers
-   ```
-
-2. Click **"New OAuth App"**
-
-3. Fill in the form:
-
-   ```
-   Application name:      LeetCommit
-   Homepage URL:          http://localhost:3000
-   Authorization callback URL:  http://localhost:3000/api/auth/github/callback
-   ```
-
-   > **Important:** The callback URL must exactly match. In production, replace `localhost:3000` with your server's domain.
-
-4. Click **"Register application"**
-
-5. On the next page, copy:
-   - **Client ID** — shown immediately
-   - **Client Secret** — click "Generate a new client secret", copy it now (it won't be shown again)
-
-   ```
-   GITHUB_CLIENT_ID=Iv1.abc123def456...
-   GITHUB_CLIENT_SECRET=abc123def456abc123def456abc123def456abc1
-   ```
-
----
-
-### 1.3 Configure Environment Variables
-
-```bash
-cd backend
-cp .env.example .env
-```
-
-Open `backend/.env` and fill in all values:
-
-```env
-# Server
-PORT=3000
-NODE_ENV=development
-
-# Database (matches docker-compose.yml defaults)
-DATABASE_URL="postgresql://leetcommit:leetpassword@localhost:5432/leetcommit_db?schema=public"
-
-# JWT — generate a secure secret:
-# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-JWT_SECRET=paste_your_generated_secret_here
-JWT_EXPIRES_IN=7d
-
-# GitHub OAuth (from Step 1.2)
-GITHUB_CLIENT_ID=your_client_id_here
-GITHUB_CLIENT_SECRET=your_client_secret_here
-
-# Extension redirect URI — leave blank for local dev (shows HTML success page)
-# In production: set this to your extension's identity.getRedirectURL() value
-FRONTEND_EXTENSION_URL=
-```
-
-To generate a secure `JWT_SECRET` run:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
----
-
-### 1.4 Start the Database
-
-**Option A — Docker (recommended):**
-
-```bash
-# From the project root
-docker-compose up -d postgres
-```
-
-This starts PostgreSQL on port `5432` with:
-- User: `leetcommit`
-- Password: `leetpassword`
-- Database: `leetcommit_db`
-
-Verify it's running:
-
-```bash
-docker-compose ps
-# postgres   Up   0.0.0.0:5432->5432/tcp
-```
-
-**Option B — Manual PostgreSQL:**
-
-```bash
-# Create database and user
-psql -U postgres -c "CREATE USER leetcommit WITH PASSWORD 'leetpassword';"
-psql -U postgres -c "CREATE DATABASE leetcommit_db OWNER leetcommit;"
-```
-
-Then update `DATABASE_URL` in `backend/.env` accordingly.
-
----
-
-### 1.5 Run Database Migrations
-
-```bash
-cd backend
-npx prisma migrate dev --name init
-```
-
-This creates all tables: `users`, `problems`, `submissions`, `topics`, `problem_topics`, `snapshots`, `refresh_tokens`.
-
-Verify the schema was applied:
-
-```bash
-npx prisma studio
-# Opens a browser UI at http://localhost:5555 showing all tables
-```
-
----
-
-### 1.6 Start the Backend Server
-
-```bash
-cd backend
-npm run dev
-```
-
-Expected output:
-
-```
-[INFO] Server running on http://localhost:3000
-[INFO] Connected to database
-```
-
-Verify it works:
-
-```bash
-curl http://localhost:3000/health
-# {"status":"ok","timestamp":"2025-06-17T..."}
-```
-
----
-
-## Part 2 — Extension Setup
-
-### 2.1 Install Extension Dependencies
-
-```bash
-# From the project root
 npm install
 ```
 
----
-
-### 2.2 Build the Extension
+### 2. Build the Extension
 
 ```bash
 npm run build
 ```
 
-This runs three Vite builds in sequence and outputs to `dist/`:
+This runs Vite builds in sequence and outputs to `dist/`.
 
-```
-dist/
-├── manifest.json     (copied from root)
-├── background.js     (IIFE — background service worker)
-├── content.js        (IIFE — injected into leetcode.com)
-├── popup.html        (popup entry)
-├── popup.js          (React popup bundle)
-├── popup.css         (Tailwind styles)
-└── icons/            (extension icons)
-```
+### 3. Load into Firefox
 
----
-
-### 2.3 Load into Firefox
-
-**Step 1** — Open Firefox and navigate to:
-
-```
-about:debugging
-```
+**Step 1** — Open Firefox and navigate to: `about:debugging`
 
 **Step 2** — Click **"This Firefox"** in the left sidebar
 
-```
-┌─────────────────────────────────────────┐
-│  about:debugging                        │
-│                                         │
-│  ┌──────────────┐  ┌─────────────────┐ │
-│  │ Setup        │  │  Temporary       │ │
-│  │ This Firefox │◄ │  Extensions      │ │
-│  │ ...          │  │                  │ │
-│  └──────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────┘
-```
-
 **Step 3** — Click **"Load Temporary Add-on..."**
 
-**Step 4** — In the file picker, navigate to:
+**Step 4** — In the file picker, navigate to `dist/` inside the LeetCommit directory.
 
-```
-/home/kanak/LeetCommit/dist/
-```
-
-Select **`manifest.json`** and click **Open**.
-
-**Step 5** — Confirm the extension appears:
-
-```
-┌─────────────────────────────────────────────┐
-│  Temporary Extensions                        │
-│                                              │
-│  ┌─────────────────────────────────────┐    │
-│  │  LeetCommit              v1.0.1      │    │
-│  │  Automatically detect accepted...   │    │
-│  │                                     │    │
-│  │  [Inspect]  [Reload]  [Remove]      │    │
-│  └─────────────────────────────────────┘    │
-└─────────────────────────────────────────────┘
-```
+**Step 5** — Select **`manifest.json`** and click **Open**.
 
 The LeetCommit icon will now appear in your Firefox toolbar.
 
-> **Tip for development:** Use `npm run dev` instead of `npm run build` — it builds and automatically launches Firefox with the extension pre-loaded and keeps it hot-reloading.
+---
+
+## First-Time Setup
+
+Since the extension syncs directly to GitHub via the browser, you just need a GitHub Personal Access Token.
+
+**Step 1** — Create a GitHub Personal Access Token
+
+1. Go to **GitHub → Settings → Developer Settings → Personal access tokens → Tokens (classic)**
+2. Click **Generate new token (classic)**.
+3. Give it a name and select the `repo` scope (Full control of private repositories).
+4. Copy the generated token.
+
+**Step 2** — Configure the Extension
+
+1. Click the **LeetCommit icon** in the Firefox toolbar.
+2. Go to the **Status tab** (the `⚡` activity icon).
+3. Enter your **GitHub Username**, **Personal Access Token**, and the **Repository Name** (e.g., `LeetCode-Solutions`). _(Note: You must create this repository manually on GitHub first)._
+4. Click **Save Configuration**.
 
 ---
 
-## Part 3 — First-Time Login
-
-**Step 1** — Click the **LeetCommit icon** in the Firefox toolbar to open the popup dashboard.
-
-**Step 2** — Navigate to the **Status tab** (the `⚡` activity icon at the bottom of the sidebar).
-
-**Step 3** — Click **"Force Sync"**.
-
-```
-┌─────────────────────────────────────────┐
-│  System Status                          │
-│  Extension and Backend Connectivity     │
-│                               [Force Sync ↺] │
-│                                         │
-│  ┌──────────────┐  ┌──────────────┐    │
-│  │  Engine      │  │  GitHub      │    │
-│  │  ● Idle      │  │  ✗ Disconn.  │    │
-│  └──────────────┘  └──────────────┘    │
-└─────────────────────────────────────────┘
-```
-
-**Step 4** — A GitHub authorization popup will open in Firefox. Sign in to GitHub and click **"Authorize LeetCommit"**.
-
-**Step 5** — The popup closes and your Status tab updates:
-
-```
-┌─────────────────────────────────────────┐
-│  ┌──────────────┐  ┌──────────────┐    │
-│  │  Engine      │  │  GitHub      │    │
-│  │  ● Idle      │  │  ✓ Connected │    │
-│  │              │  │  @your-name  │    │
-│  └──────────────┘  └──────────────┘    │
-└─────────────────────────────────────────┘
-```
-
-You're now authenticated. The extension automatically refreshes tokens in the background — you won't need to log in again unless you explicitly disconnect.
-
----
-
-## Part 4 — Using the Extension
+## Using the Extension
 
 ### Solving a Problem
 
-1. Go to **leetcode.com** and open any problem, e.g.:
-   ```
-   https://leetcode.com/problems/two-sum/
-   ```
-
-2. Write your solution in the editor and click **Submit**.
-
-3. When LeetCode shows **"Accepted"**, the extension automatically:
-
-   ```
-   LeetCode shows "Accepted"
-          │
-          ▼  (XHR interceptor fires)
-   Extension captures:
-     - Problem title, difficulty, tags (from DOM)
-     - Language, runtime, memory (from API response)
-     - Submission ID (from URL)
-          │
-          ▼  (background worker)
-   POST /api/submissions  →  backend saves to DB
-          │
-          ▼  (fire-and-forget)
-   GitHub API  →  commits solution to:
-     LeetCode-Solutions/Array/Two-Sum.py
-   ```
-
-4. Your GitHub `LeetCode-Solutions` repo (created automatically on first submission) will have a new commit:
-
-   ```
-   Sync LeetCode: Two Sum (python3)
-   ```
-
-   With file content:
-   ```python
-   # Problem: Two Sum
-   # Difficulty: Easy
-   # Tags: Array, Hash Table
-   # Link: https://leetcode.com/problems/two-sum/
-
-   class Solution:
-       def twoSum(self, nums, target):
-           ...
-   ```
+1. Go to **leetcode.com** and submit a solution to any problem.
+2. When LeetCode shows **"Accepted"**, the extension automatically detects the submission.
+3. The extension extracts the problem metadata and description via the LeetCode GraphQL API.
+4. It creates a structured folder in your repository, e.g., `Algorithms/1-Two-Sum/`.
+5. It pushes two files to your GitHub:
+   - `Two-Sum.py` (your code)
+   - `README.md` (Rich problem description and shields.io badges)
+6. The commit message includes performance metrics automatically:
+   `Time: 40 ms (90.5%) | Memory: 16 MB (80.1%) - LeetCommit`
 
 ---
 
-### The Dashboard
+### Dashboard Features
 
-Click the LeetCommit icon anytime to open the popup. It auto-syncs your latest LeetCode stats when opened.
+Click the LeetCommit icon anytime to open the popup dashboard.
 
-#### Overview Tab (🏠)
+#### 🏠 **Overview Tab**
 
-```
-┌─────────────────────────────────────────┐
-│  Dashboard                              │
-│  Your real-time local LeetCode progress │
-│                                         │
-│  ┌──────────────────┐ ┌──────────────┐ │
-│  │ Total Solved     │ │ Current      │ │
-│  │ Locally          │ │ Streak       │ │
-│  │                  │ │              │ │
-│  │       247        │ │    12 🔥     │ │
-│  └──────────────────┘ └──────────────┘ │
-└─────────────────────────────────────────┘
-```
+- Total problems solved (synced from LeetCode)
+- Current daily streak counter
+- Weekly/monthly progress indicators
+- Quick GitHub sync status indicator
 
-Shows total problems solved (pulled directly from LeetCode) and your current daily streak.
+#### 📚 **Topics Tab**
 
-#### Topics Tab (📚)
+- Problems organized by difficulty and category
+- Strength analysis (topics you excel at)
+- Weakness detection (areas needing practice)
+- Suggested focus areas based on solve history
+- Topic-wise solve rate percentages
 
-```
-┌─────────────────────────────────────────┐
-│  Topic Analysis                         │
-│  Strengths and weaknesses detection     │
-│                                         │
-│  Top Practiced Topics                   │
-│  Array          ████████████  89        │
-│  Dynamic Prog.  ██████████    67        │
-│  Hash Table     ████████      54        │
-│  Tree           ██████        41        │
-│  Graph          ████          28        │
-│                                         │
-│  ⚠ Identified Weaknesses               │
-│  ┌─────────────────────────────────┐   │
-│  │ Segment Tree    [High Priority] │   │
-│  │ Very low volume. Focus here.    │   │
-│  └─────────────────────────────────┘   │
-└─────────────────────────────────────────┘
-```
+#### 📈 **Analytics Tab**
 
-#### Analytics Tab (📈)
+- **Growth Trends Chart** — Track problems solved over time
+- **Difficulty Distribution** — Visual breakdown of Easy/Medium/Hard problems
+- **Daily Activity Heatmap** — See your most productive days
+- **Solve Rate Statistics** — Success rate by difficulty level
+- **Time Series Data** — All stored locally in browser
 
-```
-┌─────────────────────────────────────────┐
-│  Growth Trends                          │
-│                                         │
-│  Daily Submissions (Tracked)            │
-│   5 ┤    ╭─╮                            │
-│   4 ┤  ╭─╯ ╰╮   ╭╮                    │
-│   3 ┤╭─╯    ╰───╯╰──                  │
-│   2 ┤│                                 │
-│   1 ┤│                                 │
-│     └─────────────────────────────     │
-│      Jun 1   Jun 8   Jun 15  Jun 17    │
-│                                         │
-│  Difficulty Distribution               │
-│        ┌────────────────┐              │
-│    Easy│████████  54%   │              │
-│  Medium│██████    33%   │              │
-│    Hard│███       13%   │              │
-│        └────────────────┘              │
-└─────────────────────────────────────────┘
-```
+#### 💡 **Recommendations Tab**
 
-#### Tips Tab (💡)
+- **Personalized Action Plan** — Suggested next problems based on weak topics
+- **Learning Patterns** — Identifies optimal learning sequences
+- **Smart Suggestions** — "You solved 80% of Easy problems, try Medium next"
+- **Performance Insights** — Tracks improvement trends per category
 
-```
-┌─────────────────────────────────────────┐
-│  AI Recommendations                     │
-│  Personalized action plan               │
-│                                         │
-│  ┌──────────────────────────────────┐  │
-│  │ ⚡ Restore Your Streak           │  │
-│  │ You haven't solved a problem     │  │
-│  │ recently. Solve one Easy problem │  │
-│  │ right now to keep momentum!      │  │
-│  └──────────────────────────────────┘  │
-│                                         │
-│  ┌──────────────────────────────────┐  │
-│  │ 📈 Step Out of Your Comfort Zone │  │
-│  │ Over 60% of your solves are Easy.│  │
-│  │ Tackle some Mediums for interview│  │
-│  │ readiness.                       │  │
-│  └──────────────────────────────────┘  │
-└─────────────────────────────────────────┘
-```
+#### ⚡ **Status Tab**
 
-#### Status Tab (⚡)
-
-```
-┌─────────────────────────────────────────┐
-│  System Status              [Force Sync]│
-│                                         │
-│  ┌──────────────┐  ┌──────────────┐    │
-│  │  Engine      │  │  GitHub      │    │
-│  │  ● Idle      │  │  ✓ Connected │    │
-│  │  Last: 2m ago│  │  @kanak-01   │    │
-│  └──────────────┘  └──────────────┘    │
-│                                         │
-│  ┌──────────────┐  ┌──────────────┐    │
-│  │  Tracked     │  │  Last Sync   │    │
-│  │  Records     │  │  Event       │    │
-│  │  247 Subs.   │  │  two-sum     │    │
-│  └──────────────┘  └──────────────┘    │
-└─────────────────────────────────────────┘
-```
-
-Click **Force Sync** at any time to manually pull your latest LeetCode stats.
+- **Configuration Panel** — GitHub username, repository name, token management
+- **Sync History** — Shows last sync time, success/failure status
+- **Queue Monitor** — View pending uploads and retry attempts
+- **Local Records Count** — Total cached problems locally
+- **System Status** — Extension health, background worker status
 
 ---
 
 ## Development Workflow
 
-### Hot-reload development (extension + Firefox):
+### Hot-reload development:
 
 ```bash
-# Terminal 1 — Backend
-cd backend && npm run dev
-
-# Terminal 2 — Extension (auto-launches Firefox)
 npm run dev
 ```
 
 `npm run dev` uses `web-ext run` which:
+
 - Builds the extension
 - Launches a Firefox instance with the extension pre-loaded
 - Watches for file changes and auto-reloads
-
-### Useful development commands:
-
-```bash
-# Type check the extension
-npm run typecheck
-
-# Lint (zero warnings enforced)
-npm run lint
-
-# Auto-fix linting issues
-npm run lint:fix
-
-# Format with Prettier
-npm run format
-
-# Validate the extension with Mozilla's linter
-npm run ext:lint
-
-# Clean build output
-npm run clean
-
-# Production build
-npm run build
-```
-
-### Backend development commands:
-
-```bash
-cd backend
-
-# Start with hot-reload
-npm run dev
-
-# Open Prisma Studio (DB browser UI)
-npx prisma studio
-
-# Apply schema changes to DB
-npx prisma migrate dev --name your_change_name
-
-# Regenerate Prisma client after schema changes
-npx prisma generate
-
-# Build for production
-npm run build
-
-# Run production build
-npm start
-```
 
 ### Inspecting the extension in Firefox:
 
 1. Go to `about:debugging`
 2. Click **"This Firefox"** → find LeetCommit → click **"Inspect"**
-3. This opens the background service worker DevTools — check the **Console** for logs like:
-   ```
-   [LeetCommit][Background] Background script loaded.
-   [LeetCommit][Detector] Installing submission detector...
-   [LeetCommit][Submitter] Submission successfully sent to backend.
-   ```
-
----
-
-## API Reference
-
-### Authentication
-
-All endpoints except `/health` and `/api/auth/*` require a `Bearer` token.
-
-```
-Authorization: Bearer <accessToken>
-```
-
-### Endpoints
-
-#### `POST /api/submissions`
-
-Receives a detected accepted submission from the extension.
-
-**Request body:**
-```json
-{
-  "problem": {
-    "titleSlug": "two-sum",
-    "title": "Two Sum",
-    "questionId": "1",
-    "difficulty": "Easy",
-    "tags": ["Array", "Hash Table"]
-  },
-  "submission": {
-    "submissionId": "1234567890",
-    "language": "python3",
-    "runtime": "40 ms",
-    "memory": "16.5 MB",
-    "timestamp": 1717600000000,
-    "code": "class Solution:\n    def twoSum(..."
-  },
-  "capturedAt": "2025-06-17T12:00:00.000Z"
-}
-```
-
-**Response `201`:**
-```json
-{
-  "success": true,
-  "data": { "id": "uuid", "submissionId": "1234567890", ... }
-}
-```
-
-**Response `200`** (duplicate — already exists):
-```json
-{
-  "success": true,
-  "data": { ... },
-  "message": "Already exists"
-}
-```
-
----
-
-#### `GET /api/submissions?page=1&limit=50`
-
-Returns paginated list of your saved submissions.
-
-**Response `200`:**
-```json
-{
-  "success": true,
-  "data": [ { "id": "...", "submissionId": "...", "language": "python3", ... } ],
-  "meta": { "total": 247, "page": 1, "limit": 50, "totalPages": 5 }
-}
-```
-
----
-
-#### `POST /api/snapshots`
-
-Saves a full LeetCode profile snapshot (called automatically by the scheduler every 24h).
-
----
-
-#### `GET /api/analytics/dashboard`
-
-Returns aggregated analytics for the dashboard.
-
-**Response `200`:**
-```json
-{
-  "success": true,
-  "data": {
-    "totalSolved": 247,
-    "difficultyDistribution": [...],
-    "topicDistribution": {...},
-    "weeklyGrowth": 12,
-    "monthlyGrowth": 38,
-    "dailyActivity": [...],
-    "currentStreak": 12,
-    "weakestTopics": [...],
-    "recommendations": [...]
-  }
-}
-```
-
----
-
-#### `GET /api/auth/github`
-
-Initiates GitHub OAuth flow. Called automatically by the extension.
-
-#### `GET /api/auth/github/callback`
-
-GitHub redirects here after user authorizes. Returns tokens to the extension.
-
-#### `POST /api/auth/refresh`
-
-Refreshes an expired access token.
-
-**Request body:**
-```json
-{ "token": "your-refresh-token" }
-```
-
-**Response `200`:**
-```json
-{
-  "success": true,
-  "data": { "accessToken": "new-jwt-token" }
-}
-```
+3. Check the **Console** for background service worker logs.
 
 ---
 
 ## Scripts Reference
 
-### Extension (root directory)
-
-| Script | Description |
-|---|---|
-| `npm run build` | Production build → `dist/` |
-| `npm run dev` | Build + launch Firefox with extension |
-| `npm run dev:build` | Build only (no Firefox launch) |
-| `npm run typecheck` | TypeScript strict type check |
-| `npm run lint` | ESLint (zero warnings enforced) |
-| `npm run lint:fix` | Auto-fix ESLint issues |
-| `npm run format` | Prettier format all source files |
-| `npm run format:check` | Check formatting without changing files |
-| `npm run ext:lint` | Mozilla web-ext linter |
-| `npm run clean` | Remove `dist/` directory |
-
-### Backend (`backend/` directory)
-
-| Script | Description |
-|---|---|
-| `npm run dev` | Start with tsx hot-reload |
-| `npm run build` | Compile TypeScript → `dist/` |
-| `npm start` | Run compiled production build |
-| `npx prisma migrate dev` | Create + apply a new migration |
-| `npx prisma generate` | Regenerate Prisma client |
-| `npx prisma studio` | Open database browser UI |
+| Script              | Description                           |
+| ------------------- | ------------------------------------- |
+| `npm run build`     | Production build → `dist/`            |
+| `npm run dev`       | Build + launch Firefox with extension |
+| `npm run dev:build` | Build only (no Firefox launch)        |
+| `npm run typecheck` | TypeScript strict type check          |
+| `npm run lint`      | ESLint (zero warnings enforced)       |
+| `npm run lint:fix`  | Auto-fix ESLint issues                |
+| `npm run format`    | Prettier format all source files      |
+| `npm run ext:lint`  | Mozilla web-ext linter                |
+| `npm run clean`     | Remove `dist/` directory              |
 
 ---
 
@@ -966,122 +403,76 @@ Refreshes an expired access token.
 ### Extension loads but nothing happens when I submit
 
 **Check 1** — Open `about:debugging` → LeetCommit → **Inspect** → Console tab. You should see:
+
 ```
 [LeetCommit][Background] Background script loaded.
-[LeetCommit][Scheduler] Initializing background scheduler
-[LeetCommit][Content] Content script loaded on https://leetcode.com/problems/two-sum/
-[LeetCommit][Detector] Installing submission detector...
-```
-If the content script log is missing, the extension isn't injecting into the page. Try reloading the LeetCode tab.
-
-**Check 2** — Make sure you're on a `leetcode.com/problems/*` URL (not the problem list, not a contest).
-
-**Check 3** — After clicking Submit and seeing "Accepted", check the console for:
-```
-[LeetCommit][Detector] ✅ Accepted submission detected!
-[LeetCommit][Submitter] Sending submission to http://localhost:3000/api/submissions
-```
-If the detector fires but the submitter fails, check that your backend is running.
-
----
-
-### "GitHub Link: Disconnected" in Status tab
-
-1. Click **"Force Sync"** in the Status tab
-2. A GitHub OAuth popup should appear — complete the login
-3. If no popup appears, check `about:debugging` → LeetCommit → Inspect → Console for errors
-4. Verify `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are correctly set in `backend/.env`
-
----
-
-### Backend returns 401 on submissions
-
-The extension's access token may have expired. The extension refreshes it automatically — if it keeps failing:
-1. Click **"Force Sync"** to trigger a fresh login
-2. Check the backend console for JWT errors
-3. Ensure `JWT_SECRET` in `backend/.env` hasn't changed (changing it invalidates all tokens)
-
----
-
-### After restarting Firefox the extension is gone
-
-Temporary add-ons (loaded via `about:debugging`) are removed on browser restart. You have two options:
-
-**Option A** — Reload it every time:
-```
-about:debugging → This Firefox → Load Temporary Add-on → dist/manifest.json
+[LeetCommit][Content] Content script loaded
 ```
 
-**Option B** — Use the dev command (auto-reloads a dedicated Firefox instance):
-```bash
-npm run dev
+**Check 2** — Make sure you're on a `leetcode.com/problems/*` URL (not the problems list page).
+
+**Check 3** — After submitting a solution, check the console for:
+
 ```
-
-**Option C** — Sign and install permanently (requires a Mozilla developer account):
-```bash
-npm run ext:lint   # must pass first
-web-ext sign --api-key=... --api-secret=...
+✅ Accepted submission detected!
+📡 Extracting problem metadata...
+✅ Problem extracted successfully
+🔄 Syncing to GitHub...
+✅ GitHub sync complete
 ```
-
----
-
-### PostgreSQL connection error on backend start
-
-1. Verify Docker is running:
-   ```bash
-   docker-compose ps
-   ```
-2. Verify the connection string in `backend/.env` matches your setup:
-   ```
-   DATABASE_URL="postgresql://leetcommit:leetpassword@localhost:5432/leetcommit_db?schema=public"
-   ```
-3. Test the connection manually:
-   ```bash
-   psql "postgresql://leetcommit:leetpassword@localhost:5432/leetcommit_db"
-   ```
-
----
 
 ### Solutions not appearing in GitHub repo
 
-1. Check the backend logs for `Background GitHub sync failed`
-2. Verify your GitHub token has `repo` scope (granted during OAuth)
-3. Check if the `LeetCode-Solutions` repo was created on your GitHub account
-4. Note: code is only pushed if the extension captures the solution code from the DOM — the code capture is best-effort since Monaco editor uses virtualization
+1. **Verify token permissions** — Open `about:debugging` → Background Service Worker console
+2. **Look for errors** — Search console for `GITHUB API SYNC ERROR` or `401 Unauthorized`
+3. **Check token scope** — Ensure your Personal Access Token has the `repo` scope (full control)
+4. **Verify repo exists** — The extension does NOT auto-create repositories; you must create it manually
+5. **Check folder structure** — Solutions sync to `<topic>/<problem-id>-<title>/` by default
+
+### Dashboard not showing any data
+
+- **First sync pending** — Solve your first problem on LeetCode to populate the dashboard
+- **Local storage cleared** — If you cleared browser data, stats will reset (sync to GitHub is unaffected)
+- **LeetCode login session expired** — Re-login to LeetCode and wait 24h for stats refresh
+
+### Retry queue stuck or sync constantly failing
+
+1. Open the **Status Tab** → view **Sync History**
+2. Check your **GitHub token expiration** (if using personal access tokens with expiry)
+3. Open Background Worker console → look for specific API error messages
+4. **Force retry** — Disable and re-enable the extension in `about:addons`
+
+### "Failed to fetch from LeetCode" error
+
+- **Rate limited** — LeetCode throttles GraphQL queries after 50+ requests/hour
+- **Wait 1-2 hours** or solve problems more gradually
+- Check if LeetCode changed their GraphQL schema (rare, but notify maintainers if you see this)
 
 ---
 
 ## Tech Stack
 
-### Extension
+| Technology             | Version | Purpose               | Features                                                              |
+| ---------------------- | ------- | --------------------- | --------------------------------------------------------------------- |
+| **TypeScript**         | 5.8     | Type-safe development | Strict mode across all modules; prevents runtime errors               |
+| **Vite**               | 6.3     | Build tooling         | Multi-entry builds (content, background, popup as separate bundles)   |
+| **React**              | 19      | UI framework          | Dashboard popup with responsive tabs and smooth interactions          |
+| **React Router**       | 7       | Client-side routing   | Tab navigation (Overview, Topics, Analytics, Recommendations, Status) |
+| **Tailwind CSS**       | 3.4     | Styling               | Utility-first design for consistent, responsive UI                    |
+| **Recharts**           | 3.8     | Charts & graphs       | Growth trends, difficulty distribution, daily activity heatmaps       |
+| **TanStack Query**     | 5.101   | Data fetching         | Smart caching, background sync, and auto-retry for stats              |
+| **Fetch API**          | Native  | HTTP requests         | GitHub API calls (commits, file uploads), LeetCode GraphQL queries    |
+| **Web Extensions API** | MV3     | Extension platform    | Content scripts, background workers, messaging, persistent storage    |
+| **web-ext**            | 10.4    | Dev tooling           | Firefox loading, hot-reload, and Mozilla Add-ons linting              |
 
-| Technology | Purpose |
-|---|---|
-| TypeScript 5 | Type safety across all modules |
-| Vite 6 | Multi-entry build (content/background/popup as separate bundles) |
-| React 19 | Popup dashboard UI |
-| React Router 7 | Client-side routing in popup |
-| Tailwind CSS 3 | Utility-first styling |
-| Recharts 3 | Activity, difficulty, and topic charts |
-| TanStack Query 5 | Data fetching and caching in popup |
-| web-ext | Development server + Mozilla linter |
+### Architecture Benefits
 
-### Backend
-
-| Technology | Purpose |
-|---|---|
-| Node.js + TypeScript | Runtime + type safety |
-| Express 4 | HTTP server and routing |
-| Prisma 6 | ORM + migrations for PostgreSQL |
-| PostgreSQL 15 | Relational database |
-| Zod | Runtime schema validation for all inputs |
-| jsonwebtoken | JWT access tokens |
-| bcrypt | Password hashing (for email/password auth) |
-| @octokit/rest | GitHub API — creating repos and committing files |
-| axios | HTTP client for GitHub OAuth exchange |
-| Helmet | Security headers |
-| Pino | Structured JSON logging |
-| Docker | Containerised database and backend |
+- **🚀 Zero Backend** — All logic runs in-browser using Web Extensions API
+- **⚡ Real-time** — Content scripts detect submissions instantly via XHR interception
+- **🔒 Secure** — GitHub tokens stored locally; no external analytics
+- **📱 Responsive** — React + Tailwind ensures dashboard works on all desktop sizes
+- **🎯 Type-Safe** — TypeScript strict mode prevents silent failures
+- **🔄 Modular** — Separate bundles for content, background, and popup reduce extension size
 
 ---
 
