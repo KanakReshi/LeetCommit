@@ -156,23 +156,158 @@ async function uploadFileToGithub(
 }
 
 function getExtension(language: string) {
-  switch (language.toLowerCase()) {
+  switch (language.toLowerCase().trim()) {
+    // C/C++/C#
+    case 'c':
+      return 'c';
     case 'cpp':
     case 'c++':
       return 'cpp';
+    case 'csharp':
+    case 'c#':
+      return 'cs';
 
+    // Java Family
     case 'java':
       return 'java';
+    case 'kotlin':
+      return 'kt';
 
+    // Python
     case 'python':
     case 'python3':
       return 'py';
 
+    // JavaScript/TypeScript
     case 'javascript':
+    case 'js':
       return 'js';
-
     case 'typescript':
+    case 'ts':
       return 'ts';
+
+    // Go
+    case 'go':
+    case 'golang':
+      return 'go';
+
+    // Rust
+    case 'rust':
+      return 'rs';
+
+    // Ruby
+    case 'ruby':
+      return 'rb';
+
+    // PHP
+    case 'php':
+      return 'php';
+
+    // Swift
+    case 'swift':
+      return 'swift';
+
+    // Scala
+    case 'scala':
+      return 'scala';
+
+    // Bash/Shell
+    case 'bash':
+    case 'shell':
+    case 'sh':
+      return 'sh';
+
+    // SQL
+    case 'sql':
+    case 'mysql':
+    case 'postgresql':
+    case 'mssqlserver':
+      return 'sql';
+    
+    //MySQL
+
+    // R
+    case 'r':
+      return 'r';
+
+    // Perl
+    case 'perl':
+      return 'pl';
+
+    // Lua
+    case 'lua':
+      return 'lua';
+
+    // Scheme
+    case 'scheme':
+      return 'scm';
+
+    // Racket
+    case 'racket':
+      return 'rkt';
+
+    // Erlang
+    case 'erlang':
+      return 'erl';
+
+    // Elixir
+    case 'elixir':
+      return 'ex';
+
+    // Clojure
+    case 'clojure':
+      return 'clj';
+
+    // Groovy
+    case 'groovy':
+      return 'groovy';
+
+    // Dart
+    case 'dart':
+      return 'dart';
+
+    // Haskell
+    case 'haskell':
+      return 'hs';
+
+    // Lisp
+    case 'lisp':
+      return 'lisp';
+
+    // F#
+    case 'fsharp':
+    case 'f#':
+      return 'fs';
+
+    // OCaml
+    case 'ocaml':
+      return 'ml';
+
+    // VB.NET
+    case 'vbnet':
+    case 'vb.net':
+      return 'vb';
+
+    // PowerShell
+    case 'powershell':
+      return 'ps1';
+
+    // MATLAB
+    case 'matlab':
+      return 'm';
+
+    // Objective-C
+    case 'objective-c':
+    case 'objc':
+      return 'm';
+
+    // Mojo
+    case 'mojo':
+      return 'mojo';
+
+    // Solidity
+    case 'solidity':
+      return 'sol';
 
     default:
       return 'txt';
