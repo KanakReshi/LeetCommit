@@ -223,8 +223,6 @@ function getExtension(language: string) {
     case 'postgresql':
     case 'mssqlserver':
       return 'sql';
-    
-    //MySQL
 
     // R
     case 'r':
